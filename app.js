@@ -2,6 +2,7 @@
 // Lukee harjoitusohjelman program.js:stä (WORKOUT_PROGRAM)
 
 const STORAGE_KEY = 'gymtracker_history';
+const ACTIVE_KEY  = 'gymtracker_active';
 const REST_DURATION = 90; // sekuntia
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -54,6 +55,29 @@ function getWeightSuggestion(exerciseName) {
   return null;
 }
 
+// ── Active session persistence ────────────────────────────────────────────────
+function saveActiveSession() {
+  if (!state.workout) return;
+  localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+    type: state.workout.type,
+    exerciseOrder: state.exerciseOrder,
+    currentExerciseIdx: state.currentExerciseIdx,
+    currentSetIdx: state.currentSetIdx,
+    completedSets: state.completedSets,
+    startedAt: state.startedAt || new Date().toISOString()
+  }));
+}
+
+function clearActiveSession() {
+  localStorage.removeItem(ACTIVE_KEY);
+}
+
+function loadActiveSession() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null;
+  } catch { return null; }
+}
+
 function saveWorkoutSession(workoutType, exercises) {
   const history = loadHistory();
   const session = {
@@ -99,7 +123,9 @@ function startWorkout(type) {
   state.currentExerciseIdx = 0;
   state.currentSetIdx = 0;
   state.completedSets = {};
+  state.startedAt = new Date().toISOString();
   stopRestTimer();
+  saveActiveSession();
   setView('workout');
 }
 
@@ -118,6 +144,7 @@ function skipCurrentExercise() {
   state.exerciseOrder.push(skipped);
   state.currentSetIdx = 0;
   stopRestTimer();
+  saveActiveSession();
   renderWorkoutView();
 }
 
@@ -126,6 +153,7 @@ function completeSet(weight, reps) {
   if (!state.completedSets[realIdx]) state.completedSets[realIdx] = [];
   state.completedSets[realIdx].push({ weight, reps });
   state.currentSetIdx++;
+  saveActiveSession();
 
   const ex = getCurrentExercise();
   const targetSets = ex.setsMax;
@@ -150,6 +178,7 @@ function nextExercise() {
   if (state.currentExerciseIdx >= state.exerciseOrder.length) {
     finishWorkout();
   } else {
+    saveActiveSession();
     renderWorkoutView();
   }
 }
@@ -161,13 +190,42 @@ function finishWorkout() {
     return { name: ex.name, sets };
   });
   saveWorkoutSession(state.workout.type, exercises);
+  clearActiveSession();
   setView('dashboard');
 }
 
-// ── Views ────────────────────────────────────────────────────────────────────
-function setView(view) {
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function showModal({ title, message, confirmText = 'OK', cancelText = null, onConfirm, onCancel } = {}) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      ${title ? `<div class="modal-title">${title}</div>` : ''}
+      ${message ? `<div class="modal-message">${message}</div>` : ''}
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-large modal-confirm">${confirmText}</button>
+        ${cancelText ? `<button class="btn btn-ghost btn-large modal-cancel">${cancelText}</button>` : ''}
+      </div>
+    </div>
+  `;
+  overlay.querySelector('.modal-confirm').addEventListener('click', () => {
+    overlay.remove();
+    if (onConfirm) onConfirm();
+  });
+  if (cancelText) {
+    overlay.querySelector('.modal-cancel').addEventListener('click', () => {
+      overlay.remove();
+      if (onCancel) onCancel();
+    });
+  }
+  document.body.appendChild(overlay);
+}
+
+// ── Views ─────────────────────────────────────────────────────────────────────
+function setView(view, pushHistory = true) {
   state.view = view;
   stopRestTimer();
+  if (pushHistory) history.pushState({ view }, '');
   render();
 }
 
@@ -534,15 +592,23 @@ function confirmSkip() {
     showToast('Viimeinen liike, ei voi ohittaa');
     return;
   }
-  if (confirm('Laite varattu? Siirretään liike myöhemmäksi.')) {
-    skipCurrentExercise();
-  }
+  showModal({
+    title: 'Ohita liike?',
+    message: 'Laite varattu? Liike siirretään listan loppuun.',
+    confirmText: 'Ohita liike',
+    cancelText: 'Peruuta',
+    onConfirm: skipCurrentExercise
+  });
 }
 
 function confirmEndWorkout() {
-  if (confirm('Lopetetaanko treeni? Suoritetut sarjat tallennetaan.')) {
-    finishWorkout();
-  }
+  showModal({
+    title: 'Lopeta treeni?',
+    message: 'Suoritetut sarjat tallennetaan historiaan.',
+    confirmText: 'Lopeta treeni',
+    cancelText: 'Jatka treeeniä',
+    onConfirm: finishWorkout
+  });
 }
 
 // ── History ──────────────────────────────────────────────────────────────────
@@ -552,7 +618,6 @@ function renderHistory(container) {
   container.innerHTML = `
     <div class="history-view">
       <div class="header">
-        <button class="btn-back" onclick="setView('dashboard')">← Takaisin</button>
         <h2>Treenihistoria</h2>
       </div>
       ${history.length === 0
@@ -627,7 +692,60 @@ function showToast(msg) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  render();
+  history.replaceState({ view: 'dashboard' }, '');
+
+  const active = loadActiveSession();
+  if (active) {
+    const program = WORKOUT_PROGRAM[active.type];
+    state.workout = { type: active.type, exercises: program.exercises };
+    state.exerciseOrder = active.exerciseOrder;
+    state.currentExerciseIdx = active.currentExerciseIdx;
+    state.currentSetIdx = active.currentSetIdx;
+    state.completedSets = active.completedSets;
+    state.startedAt = active.startedAt;
+
+    render(); // render dashboard first
+    showModal({
+      title: 'Jatka treeeniä?',
+      message: `Sinulla on kesken Treeni ${active.type}. Haluatko jatkaa siitä mihin jäit?`,
+      confirmText: 'Jatka treeeniä',
+      cancelText: 'Aloita alusta',
+      onConfirm: () => setView('workout'),
+      onCancel: () => {
+        clearActiveSession();
+        state.workout = null;
+        state.exerciseOrder = [];
+        state.completedSets = {};
+      }
+    });
+  } else {
+    render();
+  }
+
+  window.addEventListener('popstate', e => {
+    const view = e.state?.view || 'dashboard';
+    if (state.view === 'workout') {
+      // Push forward again to keep workout in history, then ask
+      history.pushState({ view: 'workout' }, '');
+      showModal({
+        title: 'Lopeta treeni?',
+        message: 'Suoritetut sarjat tallennetaan historiaan.',
+        confirmText: 'Lopeta treeni',
+        cancelText: 'Jatka treeeniä',
+        onConfirm: finishWorkout
+      });
+    } else {
+      setView(view, false);
+    }
+  });
+
+  window.addEventListener('beforeunload', e => {
+    if (state.view === 'workout' && state.workout) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
   }
