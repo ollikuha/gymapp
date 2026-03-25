@@ -1,0 +1,20 @@
+{
+  "name": "GymTracker",
+  "short_name": "GymTracker",
+  "description": "Saliharjoitusohjelman seurantasovellus",
+  "lang": "fi",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f1a",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
