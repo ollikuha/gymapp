@@ -209,7 +209,6 @@ function renderDashboard(container) {
           <div class="swipe-dot active" data-idx="0"></div>
           <div class="swipe-dot" data-idx="1"></div>
         </div>
-        <div class="swipe-hint">← swipe →</div>
       </div>
 
       <div class="last-workout-info">${lastInfo}</div>
@@ -252,71 +251,71 @@ function initSwipe(types) {
   let currentIdx = 0;
   let startX = 0;
   let startY = 0;
-  let isDragging = false;
+  let isTracking = false;
   let isHorizontal = null;
   let dragDelta = 0;
 
   function goTo(idx) {
     currentIdx = ((idx % types.length) + types.length) % types.length;
+    track.classList.remove('dragging');
     track.style.transform = `translateX(-${currentIdx * 100}%)`;
     dots.forEach((d, i) => d.classList.toggle('active', i === currentIdx));
   }
 
-  function onStart(x, y) {
-    startX = x;
-    startY = y;
-    isDragging = true;
+  // Touch
+  wrapper.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isTracking = true;
     isHorizontal = null;
     dragDelta = 0;
-    track.classList.add('dragging');
-  }
+  }, { passive: true });
 
-  function onMove(x, y) {
-    if (!isDragging) return;
-    const dx = x - startX;
-    const dy = y - startY;
-
-    if (isHorizontal === null) {
-      isHorizontal = Math.abs(dx) > Math.abs(dy);
+  wrapper.addEventListener('touchmove', e => {
+    if (!isTracking) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (isHorizontal === null && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      isHorizontal = Math.abs(dx) >= Math.abs(dy);
     }
     if (!isHorizontal) return;
-
+    e.preventDefault();
     dragDelta = dx;
+    track.classList.add('dragging');
     track.style.transform = `translateX(calc(-${currentIdx * 100}% + ${dx}px))`;
-  }
-
-  function onEnd() {
-    if (!isDragging) return;
-    isDragging = false;
-    isHorizontal = null;
-    track.classList.remove('dragging');
-
-    if (dragDelta < -50) {
-      goTo(currentIdx + 1);
-    } else if (dragDelta > 50) {
-      goTo(currentIdx - 1);
-    } else {
-      goTo(currentIdx); // snap back
-    }
-  }
-
-  // Touch events
-  wrapper.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-  wrapper.addEventListener('touchmove', e => {
-    if (isHorizontal) e.preventDefault();
-    onMove(e.touches[0].clientX, e.touches[0].clientY);
   }, { passive: false });
-  wrapper.addEventListener('touchend', onEnd);
 
-  // Mouse events (desktop testing)
-  wrapper.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
-  window.addEventListener('mousemove', e => { if (isDragging) onMove(e.clientX, e.clientY); });
-  window.addEventListener('mouseup', onEnd);
-
-  // Dot navigation
-  dots.forEach(dot => {
-    dot.addEventListener('click', () => goTo(parseInt(dot.dataset.idx)));
+  wrapper.addEventListener('touchend', () => {
+    if (!isTracking) return;
+    isTracking = false;
+    if (dragDelta < -50) goTo(currentIdx + 1);
+    else if (dragDelta > 50) goTo(currentIdx - 1);
+    else goTo(currentIdx);
   });
+
+  // Mouse (desktop)
+  wrapper.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX;
+    isTracking = true;
+    dragDelta = 0;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!isTracking) return;
+    dragDelta = e.clientX - startX;
+    track.classList.add('dragging');
+    track.style.transform = `translateX(calc(-${currentIdx * 100}% + ${dragDelta}px))`;
+  });
+  window.addEventListener('mouseup', () => {
+    if (!isTracking) return;
+    isTracking = false;
+    if (dragDelta < -50) goTo(currentIdx + 1);
+    else if (dragDelta > 50) goTo(currentIdx - 1);
+    else goTo(currentIdx);
+  });
+
+  // Dots
+  dots.forEach(dot => dot.addEventListener('click', () => goTo(parseInt(dot.dataset.idx))));
 }
 
 function renderWarmupCard() {
