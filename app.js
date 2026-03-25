@@ -202,7 +202,7 @@ function renderDashboard(container) {
       <div>
         <div class="swipe-wrapper" id="swipe-wrapper">
           <div class="swipe-track" id="swipe-track">
-            ${types.map((t, i) => renderWorkoutSwipeCard(t, i === 0)).join('')}
+            ${[types[1], types[0], types[1], types[0]].map(t => renderWorkoutSwipeCard(t, t === nextType)).join('')}
           </div>
         </div>
         <div class="swipe-dots" id="swipe-dots">
@@ -248,19 +248,42 @@ function initSwipe(types) {
   const dots = document.querySelectorAll('.swipe-dot');
   if (!wrapper || !track) return;
 
-  let currentIdx = 0;
+  // Layout: [clone_last, types[0], types[1], clone_first] → total 4 cards
+  const total = 4;
+  let currentIdx = 1; // start at first real card
+  let isTracking = false;
   let startX = 0;
   let startY = 0;
-  let isTracking = false;
   let isHorizontal = null;
   let dragDelta = 0;
 
-  function goTo(idx) {
-    currentIdx = ((idx % types.length) + types.length) % types.length;
-    track.classList.remove('dragging');
-    track.style.transform = `translateX(-${currentIdx * 100}%)`;
-    dots.forEach((d, i) => d.classList.toggle('active', i === currentIdx));
+  function updateDots(idx) {
+    // real dot index: idx 1→dot 0, idx 2→dot 1, idx 0→dot 1, idx 3→dot 0
+    const dotIdx = (idx - 1 + types.length) % types.length;
+    dots.forEach((d, i) => d.classList.toggle('active', i === dotIdx));
   }
+
+  function snapTo(idx, animate) {
+    currentIdx = idx;
+    if (!animate) {
+      track.classList.add('no-transition');
+      track.style.transform = `translateX(-${idx * 100}%)`;
+      track.offsetHeight; // force reflow
+      track.classList.remove('no-transition');
+    } else {
+      track.classList.remove('dragging');
+      track.style.transform = `translateX(-${idx * 100}%)`;
+    }
+    updateDots(idx);
+  }
+
+  // After animated transition: if on a clone, silently jump to real counterpart
+  track.addEventListener('transitionend', () => {
+    if (currentIdx === 0) snapTo(total - 2, false);
+    else if (currentIdx === total - 1) snapTo(1, false);
+  });
+
+  snapTo(1, false); // init without animation
 
   // Touch
   wrapper.addEventListener('touchstart', e => {
@@ -288,9 +311,11 @@ function initSwipe(types) {
   wrapper.addEventListener('touchend', () => {
     if (!isTracking) return;
     isTracking = false;
-    if (dragDelta < -50) goTo(currentIdx + 1);
-    else if (dragDelta > 50) goTo(currentIdx - 1);
-    else goTo(currentIdx);
+    isHorizontal = null;
+    if (dragDelta < -50) snapTo(currentIdx + 1, true);
+    else if (dragDelta > 50) snapTo(currentIdx - 1, true);
+    else snapTo(currentIdx, true);
+    dragDelta = 0;
   });
 
   // Mouse (desktop)
@@ -309,13 +334,16 @@ function initSwipe(types) {
   window.addEventListener('mouseup', () => {
     if (!isTracking) return;
     isTracking = false;
-    if (dragDelta < -50) goTo(currentIdx + 1);
-    else if (dragDelta > 50) goTo(currentIdx - 1);
-    else goTo(currentIdx);
+    if (dragDelta < -50) snapTo(currentIdx + 1, true);
+    else if (dragDelta > 50) snapTo(currentIdx - 1, true);
+    else snapTo(currentIdx, true);
+    dragDelta = 0;
   });
 
   // Dots
-  dots.forEach(dot => dot.addEventListener('click', () => goTo(parseInt(dot.dataset.idx))));
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => snapTo(parseInt(dot.dataset.idx) + 1, true));
+  });
 }
 
 function renderWarmupCard() {
