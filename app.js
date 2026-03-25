@@ -94,7 +94,7 @@ function saveWorkoutSession(workoutType, exercises) {
 function startRestTimer(onComplete) {
   stopRestTimer();
   state.restTimer = { remaining: REST_DURATION };
-  renderRestTimer();
+  renderRestTimerHTML();  // luo DOM kerran
 
   state.restTimer.interval = setInterval(() => {
     state.restTimer.remaining--;
@@ -102,7 +102,7 @@ function startRestTimer(onComplete) {
       stopRestTimer();
       onComplete();
     } else {
-      renderRestTimer();
+      updateRestTimer();  // päivitä vain muuttuvat nodet
     }
   }, 1000);
 }
@@ -530,30 +530,52 @@ function renderWorkoutAfterSet(allDone) {
   renderWorkoutView();
 }
 
-function renderRestTimer() {
+// Luo ajastimen HTML kerran – ei kutsuta uudelleen tikityksessä
+function renderRestTimerHTML() {
   const area = document.getElementById('rest-timer-area');
-  if (!area || !state.restTimer) return;
-
-  const remaining = state.restTimer.remaining;
-  const pct = (remaining / REST_DURATION) * 100;
-  const isUrgent = remaining <= 10;
-  const isDone = remaining <= 0;
-
+  if (!area) return;
+  const r = 46;
+  const circ = +(2 * Math.PI * r).toFixed(2); // ~289
   area.innerHTML = `
-    <div class="rest-timer ${isUrgent ? 'urgent' : ''} ${isDone ? 'timer-done' : ''}">
-      <div class="timer-label">${isDone ? 'Lepo ohi!' : 'Lepotauko'}</div>
+    <div class="rest-timer" id="rest-timer-card">
+      <div class="timer-label" id="timer-label">Lepotauko</div>
       <div class="timer-circle">
-        <svg viewBox="0 0 100 100" class="timer-svg">
-          <circle class="timer-track" cx="50" cy="50" r="42"/>
-          <circle class="timer-progress" cx="50" cy="50" r="42"
-            stroke-dasharray="264"
-            stroke-dashoffset="${264 - (264 * pct / 100)}"/>
+        <svg viewBox="0 0 110 110" class="timer-svg">
+          <circle class="timer-track" cx="55" cy="55" r="${r}"/>
+          <circle class="timer-progress" id="timer-arc" cx="55" cy="55" r="${r}"
+            stroke-dasharray="${circ}"
+            stroke-dashoffset="0"/>
         </svg>
-        <div class="timer-number">${remaining}</div>
+        <div class="timer-number" id="timer-num">${REST_DURATION}</div>
       </div>
       <button class="btn btn-ghost" onclick="skipRest()">Ohita lepo</button>
     </div>
   `;
+  // Aseta oikea tila heti renderöinnin jälkeen ilman viivettä
+  updateRestTimer();
+}
+
+// Päivitä vain muuttuvat DOM-nodet joka sekunti
+function updateRestTimer() {
+  const remaining = state.restTimer ? state.restTimer.remaining : 0;
+  const r = 46;
+  const circ = +(2 * Math.PI * r).toFixed(2);
+  const pct = Math.max(0, remaining / REST_DURATION);
+  const isUrgent = remaining <= 10;
+
+  const arc = document.getElementById('timer-arc');
+  const numEl = document.getElementById('timer-num');
+  const card = document.getElementById('rest-timer-card');
+  if (!arc || !numEl || !card) return;
+
+  arc.style.strokeDashoffset = `${circ * (1 - pct)}`;
+  numEl.textContent = remaining;
+  card.classList.toggle('urgent', isUrgent);
+
+  // Pieni "pop"-animaatio numerossa joka sekunti
+  numEl.classList.remove('ticking');
+  void numEl.offsetWidth; // reflow
+  numEl.classList.add('ticking');
 }
 
 function skipRest() {
