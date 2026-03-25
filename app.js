@@ -183,12 +183,14 @@ function render() {
 function renderDashboard(container) {
   const history = loadHistory();
   const nextType = getNextWorkoutType();
-  const nextProgram = WORKOUT_PROGRAM[nextType];
   const lastSession = history.length ? history[history.length - 1] : null;
 
   const lastInfo = lastSession
     ? `Edellinen treeni: Treeni ${lastSession.type} – ${formatDate(lastSession.date)}`
     : 'Ei aiempia treenejä';
+
+  // Järjestä kortit niin että suositeltu on ensin
+  const types = nextType === 'A' ? ['A', 'B'] : ['B', 'A'];
 
   container.innerHTML = `
     <div class="dashboard">
@@ -197,56 +199,124 @@ function renderDashboard(container) {
         <p class="app-subtitle">Seuraa, kehity, voita.</p>
       </div>
 
-      <div class="next-workout-card">
-        <div class="next-label">Seuraava treeni</div>
-        <div class="next-type">Treeni ${nextType}</div>
-        <div class="next-name">${nextProgram.name}</div>
-        <div class="exercise-list-preview">
-          ${nextProgram.exercises.map(e => `<span class="exercise-chip">${e.name}</span>`).join('')}
+      <div>
+        <div class="swipe-wrapper" id="swipe-wrapper">
+          <div class="swipe-track" id="swipe-track">
+            ${types.map((t, i) => renderWorkoutSwipeCard(t, i === 0)).join('')}
+          </div>
         </div>
-        <button class="btn btn-primary btn-large" onclick="startWorkout('${nextType}')">
-          Aloita treeni →
-        </button>
+        <div class="swipe-dots" id="swipe-dots">
+          <div class="swipe-dot active" data-idx="0"></div>
+          <div class="swipe-dot" data-idx="1"></div>
+        </div>
+        <div class="swipe-hint">← swipe →</div>
       </div>
 
       <div class="last-workout-info">${lastInfo}</div>
 
-      <div class="action-row">
-        <button class="btn btn-secondary" onclick="setView('history')">
-          📋 Historia
-        </button>
-        <button class="btn btn-secondary" onclick="chooseWorkout()">
-          🔀 Valitse treeni
-        </button>
-      </div>
+      <button class="btn btn-secondary" onclick="setView('history')" style="width:100%">
+        📋 Treenihistoria
+      </button>
 
       ${renderWarmupCard()}
     </div>
   `;
+
+  initSwipe(types);
 }
 
-function chooseWorkout() {
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="dashboard">
-      <div class="header">
-        <button class="btn-back" onclick="setView('dashboard')">← Takaisin</button>
-        <h2>Valitse treeni</h2>
+function renderWorkoutSwipeCard(type, isRecommended) {
+  const program = WORKOUT_PROGRAM[type];
+  const label = isRecommended ? 'Seuraava treeni' : 'Vaihtoehtoinen treeni';
+  return `
+    <div class="swipe-card ${type === 'B' ? 'type-b' : ''}">
+      <div class="next-label">${label}</div>
+      <div class="next-type">Treeni ${type}</div>
+      <div class="next-name">${program.name}</div>
+      <div class="exercise-list-preview">
+        ${program.exercises.map(e => `<span class="exercise-chip">${e.name}</span>`).join('')}
       </div>
-      <div class="choose-cards">
-        <button class="choose-card" onclick="startWorkout('A')">
-          <div class="choose-type">Treeni A</div>
-          <div class="choose-name">${WORKOUT_PROGRAM.A.name}</div>
-          <div class="choose-exercises">${WORKOUT_PROGRAM.A.exercises.length} liikettä</div>
-        </button>
-        <button class="choose-card" onclick="startWorkout('B')">
-          <div class="choose-type">Treeni B</div>
-          <div class="choose-name">${WORKOUT_PROGRAM.B.name}</div>
-          <div class="choose-exercises">${WORKOUT_PROGRAM.B.exercises.length} liikettä</div>
-        </button>
-      </div>
+      <button class="btn btn-primary btn-large" onclick="startWorkout('${type}')">
+        Aloita treeni →
+      </button>
     </div>
   `;
+}
+
+function initSwipe(types) {
+  const wrapper = document.getElementById('swipe-wrapper');
+  const track = document.getElementById('swipe-track');
+  const dots = document.querySelectorAll('.swipe-dot');
+  if (!wrapper || !track) return;
+
+  let currentIdx = 0;
+  let startX = 0;
+  let startY = 0;
+  let isDragging = false;
+  let isHorizontal = null;
+  let dragDelta = 0;
+
+  function goTo(idx) {
+    currentIdx = ((idx % types.length) + types.length) % types.length;
+    track.style.transform = `translateX(-${currentIdx * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === currentIdx));
+  }
+
+  function onStart(x, y) {
+    startX = x;
+    startY = y;
+    isDragging = true;
+    isHorizontal = null;
+    dragDelta = 0;
+    track.classList.add('dragging');
+  }
+
+  function onMove(x, y) {
+    if (!isDragging) return;
+    const dx = x - startX;
+    const dy = y - startY;
+
+    if (isHorizontal === null) {
+      isHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+    if (!isHorizontal) return;
+
+    dragDelta = dx;
+    track.style.transform = `translateX(calc(-${currentIdx * 100}% + ${dx}px))`;
+  }
+
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    isHorizontal = null;
+    track.classList.remove('dragging');
+
+    if (dragDelta < -50) {
+      goTo(currentIdx + 1);
+    } else if (dragDelta > 50) {
+      goTo(currentIdx - 1);
+    } else {
+      goTo(currentIdx); // snap back
+    }
+  }
+
+  // Touch events
+  wrapper.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+  wrapper.addEventListener('touchmove', e => {
+    if (isHorizontal) e.preventDefault();
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  wrapper.addEventListener('touchend', onEnd);
+
+  // Mouse events (desktop testing)
+  wrapper.addEventListener('mousedown', e => { e.preventDefault(); onStart(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', e => { if (isDragging) onMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', onEnd);
+
+  // Dot navigation
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => goTo(parseInt(dot.dataset.idx)));
+  });
 }
 
 function renderWarmupCard() {
