@@ -94,7 +94,6 @@ function saveWorkoutSession(workoutType, exercises) {
 function startRestTimer(onComplete) {
   stopRestTimer();
   state.restTimer = { remaining: REST_DURATION };
-  renderRestTimerHTML();  // luo DOM kerran
 
   state.restTimer.interval = setInterval(() => {
     state.restTimer.remaining--;
@@ -522,7 +521,7 @@ function renderWorkoutView() {
     </div>
   `;
 
-  if (state.restTimer) renderRestTimer();
+  if (state.restTimer) renderRestTimerHTML();
 }
 
 function renderWorkoutAfterSet(allDone) {
