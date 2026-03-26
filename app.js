@@ -313,6 +313,7 @@ function showModal({ title, message, confirmText = 'OK', cancelText = null, onCo
 function setView(view, pushHistory = true) {
   state.view = view;
   stopRestTimer();
+  if (view !== 'history') { historyEditMode = false; historySelected.clear(); }
   if (pushHistory) history.pushState({ view }, '');
   render();
 }
@@ -737,48 +738,118 @@ function confirmEndWorkout() {
 }
 
 // ── History ──────────────────────────────────────────────────────────────────
+let historyEditMode = false;
+let historySelected = new Set();
+
 function renderHistory(container) {
   const history = loadHistory();
+  const reversed = [...history].reverse();
 
   container.innerHTML = `
     <div class="history-view">
       <div class="header">
         <h2>Treenihistoria</h2>
+        ${history.length > 0 ? `
+          <button class="btn-edit-history ${historyEditMode ? 'active' : ''}"
+            onclick="toggleHistoryEdit()">
+            ${historyEditMode ? 'Valmis' : 'Muokkaa'}
+          </button>
+        ` : ''}
       </div>
       ${history.length === 0
         ? '<div class="empty-state">Ei tallennettuja treenejä vielä.</div>'
-        : [...history].reverse().map((session, i) => renderSessionCard(session, i)).join('')
+        : reversed.map((session, i) => renderSessionCard(session, i)).join('')
       }
+      ${historyEditMode && historySelected.size > 0 ? `
+        <div class="history-delete-bar">
+          <button class="btn-delete-selected" onclick="confirmDeleteSelected()">
+            Poista valitut (${historySelected.size})
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
+}
+
+function toggleHistoryEdit() {
+  historyEditMode = !historyEditMode;
+  historySelected.clear();
+  renderHistory(document.getElementById('app'));
+}
+
+function toggleSelectSession(sessionId) {
+  if (historySelected.has(sessionId)) {
+    historySelected.delete(sessionId);
+  } else {
+    historySelected.add(sessionId);
+  }
+  renderHistory(document.getElementById('app'));
+}
+
+function confirmDeleteSelected() {
+  const count = historySelected.size;
+  showModal({
+    title: `Poistetaanko ${count} treeni${count > 1 ? 'ä' : ''}?`,
+    message: 'Poistettuja treenejä ei voi palauttaa.',
+    confirmText: `Poista ${count} treeni${count > 1 ? 'ä' : ''}`,
+    cancelText: 'Peruuta',
+    onConfirm: () => {
+      const history = loadHistory().filter(s => !historySelected.has(s.id));
+      saveHistory(history);
+      historyEditMode = false;
+      historySelected.clear();
+      renderHistory(document.getElementById('app'));
+    }
+  });
 }
 
 function renderSessionCard(session, i) {
   const dateStr = formatDate(session.date);
   const totalSets = session.exercises.reduce((sum, e) => sum + e.sets.length, 0);
+  const isSelected = historySelected.has(session.id);
+
+  if (historyEditMode) {
+    return `
+      <div class="session-card ${isSelected ? 'selected' : ''}"
+        onclick="toggleSelectSession('${session.id}')">
+        <div class="session-checkbox">${isSelected ? '✓' : ''}</div>
+        <div class="session-card-content">
+          <div class="session-header">
+            <div>
+              <span class="session-type-badge type-${session.type}">Treeni ${session.type}</span>
+              <span class="session-date">${dateStr}</span>
+            </div>
+            <span class="session-summary">${session.exercises.length} liikettä · ${totalSets} sarjaa</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="session-card" onclick="toggleSessionDetail('detail-${i}')">
-      <div class="session-header">
-        <div>
-          <span class="session-type-badge type-${session.type}">Treeni ${session.type}</span>
-          <span class="session-date">${dateStr}</span>
-        </div>
-        <span class="session-summary">${session.exercises.length} liikettä · ${totalSets} sarjaa</span>
-      </div>
-      <div class="session-detail" id="detail-${i}" style="display:none">
-        ${session.exercises.map(ex => `
-          <div class="history-exercise">
-            <div class="history-ex-name">${ex.name}</div>
-            <div class="history-sets">
-              ${ex.sets.map((s, si) => `
-                <span class="history-set">
-                  S${si + 1}: ${s.weight != null ? s.weight + ' kg × ' : ''}${s.reps}
-                </span>
-              `).join('')}
-            </div>
+      <div class="session-card-content">
+        <div class="session-header">
+          <div>
+            <span class="session-type-badge type-${session.type}">Treeni ${session.type}</span>
+            <span class="session-date">${dateStr}</span>
           </div>
-        `).join('')}
+          <span class="session-summary">${session.exercises.length} liikettä · ${totalSets} sarjaa</span>
+        </div>
+        <div class="session-detail" id="detail-${i}" style="display:none">
+          ${session.exercises.map(ex => `
+            <div class="history-exercise">
+              <div class="history-ex-name">${ex.name}</div>
+              <div class="history-sets">
+                ${ex.sets.map((s, si) => `
+                  <span class="history-set">
+                    S${si + 1}: ${s.weight != null ? s.weight + ' kg × ' : ''}${s.reps}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     </div>
   `;
