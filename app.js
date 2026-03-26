@@ -113,6 +113,7 @@ function playBeep() {
 // ── Set timer (aikaharjoitukset) ──────────────────────────────────────────────
 function startSetTimer(duration) {
   stopSetTimer();
+  stopRestTimer();
   state.setTimer = { remaining: duration, total: duration };
   renderWorkoutView(); // luo DOM uudelleen set-timer-area:n kanssa, sitten renderSetTimerHTML
 
@@ -152,7 +153,7 @@ function renderSetTimerHTML() {
         </svg>
         <div class="timer-number" id="set-timer-num">${state.setTimer ? state.setTimer.remaining : 0}</div>
       </div>
-      <button class="btn btn-ghost" onclick="stopSetTimerEarly()">Lopeta aikaistui</button>
+      <button class="btn btn-ghost" onclick="stopSetTimerEarly()">Lopeta</button>
     </div>
   `;
   updateSetTimer();
