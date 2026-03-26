@@ -633,7 +633,7 @@ function renderWorkoutView() {
 
       ${!allSetsDone && !state.setTimer ? `
         <button class="btn btn-skip-below" onclick="confirmSkip()">
-          ⏭ Laite varattu – ohita liike
+          ⇄ Vaihda liike
         </button>
       ` : ''}
 
@@ -740,16 +740,85 @@ function formatSetResult(type, set) {
 
 function confirmSkip() {
   if (state.exerciseOrder.length - state.currentExerciseIdx <= 1) {
-    showToast('Viimeinen liike, ei voi ohittaa');
+    showToast('Ei muita liikkeitä jäljellä');
     return;
   }
-  showModal({
-    title: 'Ohita liike?',
-    message: 'Laite varattu? Liike siirretään listan loppuun.',
-    confirmText: 'Ohita liike',
-    cancelText: 'Peruuta',
-    onConfirm: skipCurrentExercise
-  });
+  showExerciseNavigator();
+}
+
+function showExerciseNavigator() {
+  hideExerciseNavigator();
+
+  const doneOrderIndices   = Array.from({ length: state.currentExerciseIdx }, (_, i) => i);
+  const remainOrderIndices = Array.from(
+    { length: state.exerciseOrder.length - state.currentExerciseIdx },
+    (_, i) => state.currentExerciseIdx + i
+  );
+
+  function itemHTML(orderIdx) {
+    const realIdx = state.exerciseOrder[orderIdx];
+    const ex = state.workout.exercises[realIdx];
+    const isCurrent = orderIdx === state.currentExerciseIdx;
+    const isDone = orderIdx < state.currentExerciseIdx;
+    return `
+      <button class="ex-nav-item ${isCurrent ? 'current' : ''} ${isDone ? 'completed' : ''}"
+        ${isDone ? 'disabled' : `onclick="jumpToExercise(${orderIdx})"`}>
+        <div class="ex-nav-item-info">
+          <span class="ex-nav-item-name">${ex.name}</span>
+          <span class="ex-nav-item-target">${ex.target}</span>
+        </div>
+        ${isDone
+          ? '<span class="ex-nav-check">✓</span>'
+          : isCurrent
+            ? '<span class="ex-nav-hint">siirrä loppuun</span>'
+            : '<span class="ex-nav-arrow">›</span>'
+        }
+      </button>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'ex-nav-overlay';
+  overlay.id = 'ex-nav-overlay';
+  overlay.innerHTML = `
+    <div class="ex-nav-sheet">
+      <div class="ex-nav-title">Vaihda liike</div>
+      ${remainOrderIndices.length > 0 ? `
+        <div class="ex-nav-section-label">Jäljellä</div>
+        ${remainOrderIndices.map(itemHTML).join('')}
+      ` : ''}
+      ${doneOrderIndices.length > 0 ? `
+        <div class="ex-nav-section-label">Tehty</div>
+        ${doneOrderIndices.map(itemHTML).join('')}
+      ` : ''}
+      <button class="btn btn-ghost ex-nav-cancel" onclick="hideExerciseNavigator()">Peruuta</button>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) hideExerciseNavigator(); });
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+}
+
+function hideExerciseNavigator() {
+  const el = document.getElementById('ex-nav-overlay');
+  if (!el) return;
+  el.classList.remove('open');
+  el.addEventListener('transitionend', () => el.remove(), { once: true });
+}
+
+function jumpToExercise(targetOrderIdx) {
+  if (targetOrderIdx === state.currentExerciseIdx) {
+    hideExerciseNavigator();
+    skipCurrentExercise();
+    return;
+  }
+  const [realIdx] = state.exerciseOrder.splice(targetOrderIdx, 1);
+  state.exerciseOrder.splice(state.currentExerciseIdx, 0, realIdx);
+  state.currentSetIdx = 0;
+  stopRestTimer();
+  stopSetTimer();
+  saveActiveSession();
+  hideExerciseNavigator();
+  renderWorkoutView();
 }
 
 function confirmEndWorkout() {
