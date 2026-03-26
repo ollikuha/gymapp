@@ -589,6 +589,7 @@ function renderWorkoutView() {
   const currentSet = state.currentSetIdx + 1;
   const totalSets = ex.setsMax;
   const allSetsDone = state.currentSetIdx >= totalSets;
+  const minSetsDone = ex.setsMin < ex.setsMax && state.currentSetIdx >= ex.setsMin;
 
   const suggestion = ex.type === 'weight' ? getWeightSuggestion(ex.name) : null;
   const weightPlaceholder = suggestion != null ? `${suggestion}` : '';
@@ -688,7 +689,7 @@ function renderWorkoutView() {
         </button>
       ` : ''}
 
-      ${allSetsDone && !state.restTimer ? `
+      ${(allSetsDone || minSetsDone) && !state.restTimer ? `
         <button class="btn btn-primary btn-large btn-next" onclick="nextExercise()">
           ${state.currentExerciseIdx + 1 >= state.exerciseOrder.length
             ? 'Lopeta treeni ✓'
