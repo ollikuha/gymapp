@@ -5,6 +5,27 @@ const STORAGE_KEY = 'gymtracker_history';
 const ACTIVE_KEY  = 'gymtracker_active';
 const REST_DURATION = 90; // sekuntia
 
+// ── Wake Lock ─────────────────────────────────────────────────────────────────
+let wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch (_) {}
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+
+// Näyttö sammuu taustalle mennessä – hankitaan takaisin kun siirrytään etualalle
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.setTimer) {
+    acquireWakeLock();
+  }
+});
+
 // ── State ────────────────────────────────────────────────────────────────────
 let state = {
   view: 'dashboard',           // 'dashboard' | 'workout' | 'history'
@@ -114,6 +135,7 @@ function playBeep() {
 function startSetTimer(duration) {
   stopSetTimer();
   stopRestTimer();
+  acquireWakeLock();
   state.setTimer = { remaining: duration, total: duration };
   renderWorkoutView(); // luo DOM uudelleen set-timer-area:n kanssa, sitten renderSetTimerHTML
 
@@ -135,6 +157,7 @@ function stopSetTimer() {
     clearInterval(state.setTimer.interval);
   }
   state.setTimer = null;
+  releaseWakeLock();
 }
 
 function renderSetTimerHTML() {
@@ -191,6 +214,8 @@ function startRestTimer(duration, onComplete) {
     state.restTimer.remaining--;
     if (state.restTimer.remaining <= 0) {
       stopRestTimer();
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
       onComplete();
     } else {
       updateRestTimer();
