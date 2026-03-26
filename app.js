@@ -1,8 +1,9 @@
 // app.js – GymTracker sovelluksen logiikka ja UI
-// Lukee harjoitusohjelman program.js:stä (WORKOUT_PROGRAM)
+// Lukee harjoitusohjelmat program.js:stä (PROGRAMS)
 
-const STORAGE_KEY = 'gymtracker_history';
-const ACTIVE_KEY  = 'gymtracker_active';
+const STORAGE_KEY  = 'gymtracker_history';
+const ACTIVE_KEY   = 'gymtracker_active';
+const PROGRAM_KEY  = 'gymtracker_program';
 const REST_DURATION = 90; // sekuntia
 
 // ── Wake Lock ─────────────────────────────────────────────────────────────────
@@ -51,16 +52,46 @@ function saveHistory(history) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
 }
 
-function getLastWorkoutType() {
+// ── Program storage ───────────────────────────────────────────────────────────
+function loadActiveProgramId() {
+  return localStorage.getItem(PROGRAM_KEY) || null;
+}
+
+function saveActiveProgramId(id) {
+  localStorage.setItem(PROGRAM_KEY, id);
+}
+
+function getActiveProgramData() {
+  const id = loadActiveProgramId();
+  return PROGRAMS.find(p => p.id === id) || PROGRAMS[0];
+}
+
+// Palauttaa vain aktiivisen ohjelman historia-sessiot
+function loadProgramHistory() {
+  const prog = getActiveProgramData();
+  return loadHistory().filter(s => (s.programId || 'default') === prog.id);
+}
+
+// Palauttaa viimeksi tehdyn treenijakotyypin aktiivisessa ohjelmassa
+function getLastWorkoutOfProgram() {
+  const prog = getActiveProgramData();
   const history = loadHistory();
-  if (!history.length) return null;
-  return history[history.length - 1].type;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const entry = history[i];
+    if ((entry.programId || 'default') === prog.id) {
+      return entry.type;
+    }
+  }
+  return null;
 }
 
 function getNextWorkoutType() {
-  const last = getLastWorkoutType();
-  if (!last || last === 'B') return 'A';
-  return 'B';
+  const prog = getActiveProgramData();
+  const types = Object.keys(prog.workouts);
+  const last = getLastWorkoutOfProgram();
+  if (!last) return types[0];
+  const idx = types.indexOf(last);
+  return types[(idx + 1) % types.length];
 }
 
 // Palauttaa viimeksi käytetyn painon harjoitukselle (tai null)
@@ -106,7 +137,8 @@ function saveWorkoutSession(workoutType, exercises) {
     id: Date.now().toString(),
     type: workoutType,
     date: new Date().toISOString(),
-    exercises: exercises
+    exercises: exercises,
+    programId: loadActiveProgramId() || 'default'
   };
   history.push(session);
   saveHistory(history);
@@ -232,7 +264,7 @@ function stopRestTimer() {
 
 // ── Workout logic ────────────────────────────────────────────────────────────
 function startWorkout(type) {
-  const program = WORKOUT_PROGRAM[type];
+  const program = getActiveProgramData().workouts[type];
   const exerciseCount = program.exercises.length;
   state.workout = { type, exercises: program.exercises };
   state.exerciseOrder = Array.from({ length: exerciseCount }, (_, i) => i);
@@ -349,38 +381,60 @@ function render() {
   if (state.view === 'dashboard') renderDashboard(app);
   else if (state.view === 'workout') renderWorkoutView();
   else if (state.view === 'history') renderHistory(app);
+  else if (state.view === 'program-select') renderProgramSelect(app);
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function renderDashboard(container) {
-  const history = loadHistory();
+  const prog = getActiveProgramData();
+  const progHistory = loadProgramHistory();
   const nextType = getNextWorkoutType();
-  const lastSession = history.length ? history[history.length - 1] : null;
+  const lastSession = progHistory.length ? progHistory[progHistory.length - 1] : null;
 
   const lastInfo = lastSession
     ? `Edellinen treeni: Treeni ${lastSession.type} – ${formatDate(lastSession.date)}`
     : 'Ei aiempia treenejä';
 
+  const types = Object.keys(prog.workouts);
   // Järjestä kortit niin että suositeltu on ensin
-  const types = nextType === 'A' ? ['A', 'B'] : ['B', 'A'];
+  const orderedTypes = [nextType, ...types.filter(t => t !== nextType)];
+
+  let carouselHTML;
+  if (types.length === 1) {
+    carouselHTML = `
+      <div class="single-card-wrap">
+        ${renderWorkoutSwipeCard(types[0], true)}
+      </div>
+    `;
+  } else {
+    // Carousel: [clone_last, ...orderedTypes, clone_first]
+    const carouselItems = [orderedTypes[orderedTypes.length - 1], ...orderedTypes, orderedTypes[0]];
+    carouselHTML = `
+      <div class="swipe-wrapper" id="swipe-wrapper">
+        <div class="swipe-track" id="swipe-track">
+          ${carouselItems.map(t => renderWorkoutSwipeCard(t, t === nextType)).join('')}
+        </div>
+      </div>
+      <div class="swipe-dots" id="swipe-dots">
+        ${orderedTypes.map((_, i) => `<div class="swipe-dot ${i === 0 ? 'active' : ''}" data-idx="${i}"></div>`).join('')}
+      </div>
+    `;
+  }
 
   container.innerHTML = `
     <div class="dashboard">
       <div class="header">
-        <h1 class="app-title">💪 GymTracker</h1>
+        <div class="header-top">
+          <h1 class="app-title">💪 GymTracker</h1>
+          <button class="btn-program-switch" onclick="setView('program-select')">
+            ${prog.name} ⚙
+          </button>
+        </div>
         <p class="app-subtitle">Seuraa, kehity, voita.</p>
       </div>
 
       <div>
-        <div class="swipe-wrapper" id="swipe-wrapper">
-          <div class="swipe-track" id="swipe-track">
-            ${[types[1], types[0], types[1], types[0]].map(t => renderWorkoutSwipeCard(t, t === nextType)).join('')}
-          </div>
-        </div>
-        <div class="swipe-dots" id="swipe-dots">
-          <div class="swipe-dot active" data-idx="0"></div>
-          <div class="swipe-dot" data-idx="1"></div>
-        </div>
+        ${carouselHTML}
       </div>
 
       <div class="last-workout-info">${lastInfo}</div>
@@ -393,11 +447,11 @@ function renderDashboard(container) {
     </div>
   `;
 
-  initSwipe(types);
+  if (types.length > 1) initSwipe(orderedTypes);
 }
 
 function renderWorkoutSwipeCard(type, isRecommended) {
-  const program = WORKOUT_PROGRAM[type];
+  const program = getActiveProgramData().workouts[type];
   const label = isRecommended ? 'Seuraava treeni' : 'Vaihtoehtoinen treeni';
   return `
     <div class="swipe-card ${type === 'B' ? 'type-b' : ''}">
@@ -420,8 +474,8 @@ function initSwipe(types) {
   const dots = document.querySelectorAll('.swipe-dot');
   if (!wrapper || !track) return;
 
-  // Layout: [clone_last, types[0], types[1], clone_first] → total 4 cards
-  const total = 4;
+  // Layout: [clone_last, ...types, clone_first] → total = types.length + 2 cards
+  const total = types.length + 2;
   let currentIdx = 1; // start at first real card
   let isTracking = false;
   let startX = 0;
@@ -831,26 +885,67 @@ function confirmEndWorkout() {
   });
 }
 
+// ── Program select ────────────────────────────────────────────────────────────
+function renderProgramSelect(container) {
+  const currentId = loadActiveProgramId() || PROGRAMS[0].id;
+  const hasProgram = loadActiveProgramId() !== null;
+
+  container.innerHTML = `
+    <div class="program-select-view">
+      <div class="header">
+        ${hasProgram ? `<button class="btn-back" onclick="setView('dashboard')">←</button>` : ''}
+        <h2>Valitse ohjelma</h2>
+      </div>
+      <div class="program-list">
+        ${PROGRAMS.map(prog => {
+          const workoutTypes = Object.keys(prog.workouts);
+          const isActive = prog.id === currentId;
+          return `
+            <div class="program-item ${isActive ? 'active' : ''}" onclick="selectProgram('${prog.id}')">
+              <div class="program-item-main">
+                <div class="program-item-name">${prog.name}</div>
+                <div class="program-item-splits">
+                  ${workoutTypes.map(t => `<span class="program-split-chip">${prog.workouts[t].name}</span>`).join('')}
+                </div>
+              </div>
+              <div class="program-item-right">
+                ${isActive ? '<span class="program-active-badge">Aktiivinen</span>' : '<span class="program-select-arrow">›</span>'}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function selectProgram(id) {
+  saveActiveProgramId(id);
+  historyEditMode = false;
+  historySelected.clear();
+  setView('dashboard');
+}
+
 // ── History ──────────────────────────────────────────────────────────────────
 let historyEditMode = false;
 let historySelected = new Set();
 
 function renderHistory(container) {
-  const history = loadHistory();
-  const reversed = [...history].reverse();
+  const progHistory = loadProgramHistory();
+  const reversed = [...progHistory].reverse();
 
   container.innerHTML = `
     <div class="history-view">
       <div class="header">
         <h2>Treenihistoria</h2>
-        ${history.length > 0 ? `
+        ${progHistory.length > 0 ? `
           <button class="btn-edit-history ${historyEditMode ? 'active' : ''}"
             onclick="toggleHistoryEdit()">
             ${historyEditMode ? 'Valmis' : 'Muokkaa'}
           </button>
         ` : ''}
       </div>
-      ${history.length === 0
+      ${progHistory.length === 0
         ? '<div class="empty-state">Ei tallennettuja treenejä vielä.</div>'
         : reversed.map((session, i) => renderSessionCard(session, i)).join('')
       }
@@ -982,11 +1077,19 @@ function showToast(msg) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Jos ohjelmaa ei ole valittu, näytetään ohjelmanvalinta ensin
+  if (!loadActiveProgramId()) {
+    state.view = 'program-select';
+    history.replaceState({ view: 'program-select' }, '');
+    render();
+    return;
+  }
+
   history.replaceState({ view: 'dashboard' }, '');
 
   const active = loadActiveSession();
   if (active) {
-    const program = WORKOUT_PROGRAM[active.type];
+    const program = getActiveProgramData().workouts[active.type];
     state.workout = { type: active.type, exercises: program.exercises };
     state.exerciseOrder = active.exerciseOrder;
     state.currentExerciseIdx = active.currentExerciseIdx;

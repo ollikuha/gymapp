@@ -124,8 +124,118 @@
     }
 
     .header { padding: 8px 0 4px; }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
     .app-title { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .app-subtitle { color: var(--text2); font-size: 0.95rem; margin-top: 4px; }
+
+    .btn-program-switch {
+      background: var(--bg3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      color: var(--text2);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 6px 12px;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      min-height: 36px;
+      flex-shrink: 0;
+    }
+    .btn-program-switch:active { color: var(--text); border-color: var(--accent); }
+
+    .single-card-wrap {
+      padding: 0 16px;
+    }
+
+    /* ── Program select ────────────────────────────────────────── */
+    .program-select-view {
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .program-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .program-item {
+      background: var(--bg2);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .program-item:active { background: var(--bg3); }
+    .program-item.active {
+      border-color: var(--accent);
+      background: linear-gradient(145deg, var(--bg2), var(--bg3));
+    }
+
+    .program-item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .program-item-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .program-item-splits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .program-split-chip {
+      background: var(--bg3);
+      color: var(--text2);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .program-item.active .program-split-chip {
+      background: rgba(124, 58, 237, 0.15);
+      color: #c4b5fd;
+    }
+
+    .program-item-right {
+      flex-shrink: 0;
+    }
+
+    .program-active-badge {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .program-select-arrow {
+      color: var(--text3);
+      font-size: 1.4rem;
+      line-height: 1;
+    }
 
     .next-workout-card {
       background: linear-gradient(145deg, var(--bg2), var(--bg3));
