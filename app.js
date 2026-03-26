@@ -120,13 +120,26 @@ async function getNextWorkoutType() {
   return types[(types.indexOf(last) + 1) % types.length];
 }
 
-// Palauttaa progressioehdotuksen harjoitukselle edellisen treenin perusteella.
-// exerciseDef on ohjelmatiedoston liikeobjekti (sisältää repsMin, repsMax, progression).
-// Palauttaa: { weight, reps, isProgressed, hint }
-//   weight      – ehdotettu paino (kg) tai null
-//   reps        – ehdotetut toistot tai null (käytä ohjelman repsMax)
-//   isProgressed – true jos paino nousee
-//   hint        – näytettävä teksti
+// Returns a progression-based suggestion for the next set of an exercise.
+// Searches all sessions backwards to find the most recent data for exerciseName,
+// then applies the progression model defined in exerciseDef.progression.
+//
+// exerciseDef – exercise object from program.js (needs repsMin, repsMax, progression)
+//
+// Returns: { weight, reps, isProgressed, hint }
+//   weight       – suggested weight in kg, or null if no history
+//   reps         – suggested rep target, or null (caller falls back to exerciseDef.repsMax)
+//   isProgressed – true when weight is being increased this session
+//   hint         – display string shown below the weight input
+//
+// Progression logic:
+//   No history           → weight: null, hint: ''  (no suggestion shown)
+//   No progression model → weight: lastWeight, hint: 'Viimeksi: X kg'
+//   type "linear"        → weight: lastWeight + increment (always increases)
+//   type "double"        → if lowest reps last session >= repsMax:
+//                            weight + increment, reps reset to repsMin
+//                          else:
+//                            same weight, reps target = min(lowestReps + 1, repsMax)
 async function getProgressionSuggestion(exerciseName, exerciseDef) {
   const all = await idbGetAll();
   let lastSets = null;

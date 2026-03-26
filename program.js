@@ -1,19 +1,45 @@
-// program.js – Harjoitusohjelmat
-// Tiedosto sisältää kaikki harjoitusohjelmat. Lisää uusia ohjelmia PROGRAMS-taulukkoon.
-// app.js lukee PROGRAMS-muuttujan ja getActiveProgramData()-funktion kautta aktiivisen ohjelman.
+// program.js – Workout programs
+// Contains all workout programs. Add new programs to the PROGRAMS array.
+// app.js reads the active program via PROGRAMS and getActiveProgramData().
 //
-// Ohjelmarakenne:
-//   id       – uniikki tunniste (merkkijono, ei välilyöntejä)
-//   name     – ohjelman nimi (näkyy käyttäjälle)
-//   workouts – objekti, jossa avaimina treenijakotyypit (esim. A, B, tai A/B/C)
-//              Jokainen treenijakotyyppi sisältää: name (nimi) ja exercises (liikkeet)
+// Program structure:
+//   id       – unique identifier (string, no spaces)
+//   name     – display name shown to the user
+//   workouts – object keyed by workout split types (e.g. A, B, or A/B/C)
+//              Each split contains: name (display name) and exercises (array)
 //
-// Exercise type-kentät:
-//   "weight"        – paino (kg) + toistot (oletus)
-//   "time"          – aikapohjainen, toistot = sekuntia (ei kg-kenttää)
-//   "reps_per_side" – toistot per puoli (ei kg-kenttää)
+// Exercise fields:
+//   name          – exercise name (used to look up history across sessions)
+//   target        – muscle group description shown to the user
+//   type          – "weight" | "time" | "reps_per_side" (see below)
+//   setsMin       – minimum number of sets
+//   setsMax       – maximum number of sets
+//   repsMin       – min reps / seconds / reps-per-side
+//   repsMax       – max reps / seconds / reps-per-side
+//   restDuration  – rest between sets in seconds (default 90)
+//   note          – optional technique tip shown on the exercise card
+//   progression   – optional progression model (weight-type exercises only, see below)
 //
-// restDuration – lepoaika sarjojen välissä sekunteina (oletus 90)
+// Exercise types:
+//   "weight"        – weight (kg) + reps input
+//   "time"          – timer-based, reps = seconds (no weight field)
+//   "reps_per_side" – reps per side (no weight field)
+//
+// Progression models (progression field):
+//   The app looks up the previous session for each exercise and suggests the
+//   next weight/reps based on the model. If omitted, the last used weight is
+//   suggested with no progression calculation.
+//
+//   { type: "double", weightIncrement: <kg> }   – Double progression (hypertrophy)
+//     Work reps up to repsMax across all sets, then add weight and reset to repsMin.
+//     • All sets reached repsMax last session → suggest weight + weightIncrement, target repsMin
+//     • Otherwise → same weight, target reps = min(lowestRepsLastSession + 1, repsMax)
+//     Hint shown in green when weight increases.
+//
+//   { type: "linear", weightIncrement: <kg> }   – Linear progression (strength)
+//     Add weightIncrement every session regardless of rep count.
+//     Suitable for low-rep strength work (≤6 reps).
+//     Hint always shown in green.
 
 const PROGRAMS = [
   // ── Ohjelma 1: Perusohjelma A/B ──────────────────────────────────────────
