@@ -114,7 +114,7 @@ function playBeep() {
 function startSetTimer(duration) {
   stopSetTimer();
   state.setTimer = { remaining: duration, total: duration };
-  renderSetTimerHTML();
+  renderWorkoutView(); // luo DOM uudelleen set-timer-area:n kanssa, sitten renderSetTimerHTML
 
   state.setTimer.interval = setInterval(() => {
     state.setTimer.remaining--;
