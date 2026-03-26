@@ -114,21 +114,6 @@
     }
     .btn-back:hover { color: var(--text); }
 
-    .btn-skip {
-      background: var(--bg3);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: var(--text2);
-      font-size: 0.85rem;
-      font-weight: 500;
-      padding: 8px 12px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      white-space: nowrap;
-      min-height: 44px;
-      flex-shrink: 0;
-    }
-    .btn-skip:hover { color: var(--yellow); border-color: var(--yellow); }
-    .btn-skip:active { transform: scale(0.96); }
 
     /* ── Dashboard ────────────────────────────────────────────── */
     .dashboard {
@@ -412,6 +397,42 @@
     .note-icon { margin-right: 4px; }
 
     .btn-next { margin-top: 4px; }
+
+    .btn-skip-below {
+      width: 100%;
+      padding: 14px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text3);
+      background: transparent;
+      border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-skip-below:hover { color: var(--yellow); border-color: var(--yellow); }
+    .btn-skip-below:active { transform: scale(0.98); }
+
+    /* ── Set timer (aikaharjoitukset) ─────────────────────────── */
+    .set-timer-card {
+      background: var(--bg2);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      animation: slideUp 0.3s ease;
+      transition: border-color 0.4s ease;
+    }
+    .set-timer-progress {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+    }
 
     /* ── Rest Timer ───────────────────────────────────────────── */
     .rest-timer {

@@ -13,7 +13,8 @@ let state = {
   currentExerciseIdx: 0,
   currentSetIdx: 0,
   completedSets: {},           // { exIdx: [{ weight, reps }] }
-  restTimer: null,             // { interval, remaining }
+  restTimer: null,             // { interval, remaining, total }
+  setTimer: null,              // { interval, remaining, total } – aikaharjoituksen sarja
 };
 
 // ── Storage ──────────────────────────────────────────────────────────────────
@@ -91,9 +92,99 @@ function saveWorkoutSession(workoutType, exercises) {
 }
 
 // ── Timer ────────────────────────────────────────────────────────────────────
-function startRestTimer(onComplete) {
+// ── Audio ─────────────────────────────────────────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+
+// ── Set timer (aikaharjoitukset) ──────────────────────────────────────────────
+function startSetTimer(duration) {
+  stopSetTimer();
+  state.setTimer = { remaining: duration, total: duration };
+  renderSetTimerHTML();
+
+  state.setTimer.interval = setInterval(() => {
+    state.setTimer.remaining--;
+    if (state.setTimer.remaining <= 0) {
+      stopSetTimer();
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+      completeSet(null, duration);
+    } else {
+      updateSetTimer();
+    }
+  }, 1000);
+}
+
+function stopSetTimer() {
+  if (state.setTimer && state.setTimer.interval) {
+    clearInterval(state.setTimer.interval);
+  }
+  state.setTimer = null;
+}
+
+function renderSetTimerHTML() {
+  const area = document.getElementById('set-timer-area');
+  if (!area) return;
+  const r = 46;
+  const circ = +(2 * Math.PI * r).toFixed(2);
+  area.innerHTML = `
+    <div class="set-timer-card" id="set-timer-card">
+      <div class="timer-label">Sarja käynnissä</div>
+      <div class="timer-circle">
+        <svg viewBox="0 0 110 110" class="timer-svg">
+          <circle class="timer-track" cx="55" cy="55" r="${r}"/>
+          <circle class="set-timer-progress" id="set-timer-arc" cx="55" cy="55" r="${r}"
+            stroke-dasharray="${circ}" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-number" id="set-timer-num">${state.setTimer ? state.setTimer.remaining : 0}</div>
+      </div>
+      <button class="btn btn-ghost" onclick="stopSetTimerEarly()">Lopeta aikaistui</button>
+    </div>
+  `;
+  updateSetTimer();
+}
+
+function updateSetTimer() {
+  if (!state.setTimer) return;
+  const remaining = state.setTimer.remaining;
+  const r = 46;
+  const circ = +(2 * Math.PI * r).toFixed(2);
+  const pct = Math.max(0, remaining / state.setTimer.total);
+  const arc = document.getElementById('set-timer-arc');
+  const numEl = document.getElementById('set-timer-num');
+  if (!arc || !numEl) return;
+  arc.style.strokeDashoffset = `${circ * (1 - pct)}`;
+  numEl.textContent = remaining;
+  numEl.classList.remove('ticking');
+  void numEl.offsetWidth;
+  numEl.classList.add('ticking');
+}
+
+function stopSetTimerEarly() {
+  if (!state.setTimer) return;
+  const elapsed = state.setTimer.total - state.setTimer.remaining;
+  stopSetTimer();
+  completeSet(null, elapsed);
+}
+
+// ── Rest timer ────────────────────────────────────────────────────────────────
+function startRestTimer(duration, onComplete) {
   stopRestTimer();
-  state.restTimer = { remaining: REST_DURATION };
+  state.restTimer = { remaining: duration, total: duration };
 
   state.restTimer.interval = setInterval(() => {
     state.restTimer.remaining--;
@@ -101,7 +192,7 @@ function startRestTimer(onComplete) {
       stopRestTimer();
       onComplete();
     } else {
-      updateRestTimer();  // päivitä vain muuttuvat nodet
+      updateRestTimer();
     }
   }, 1000);
 }
@@ -155,17 +246,13 @@ function completeSet(weight, reps) {
   saveActiveSession();
 
   const ex = getCurrentExercise();
+  const restDur = ex.restDuration || REST_DURATION;
   const targetSets = ex.setsMax;
   if (state.currentSetIdx >= targetSets) {
-    // Kaikki sarjat tehty – näytä lepotauko ja tarjoa siirtyä seuraavaan
-    startRestTimer(() => {
-      renderWorkoutView(); // Ajastin loppui → normaali näkymä
-    });
+    startRestTimer(restDur, () => renderWorkoutView());
     renderWorkoutAfterSet(true);
   } else {
-    startRestTimer(() => {
-      renderWorkoutView();
-    });
+    startRestTimer(restDur, () => renderWorkoutView());
     renderWorkoutAfterSet(false);
   }
 }
@@ -174,6 +261,7 @@ function nextExercise() {
   state.currentExerciseIdx++;
   state.currentSetIdx = 0;
   stopRestTimer();
+  stopSetTimer();
   if (state.currentExerciseIdx >= state.exerciseOrder.length) {
     finishWorkout();
   } else {
@@ -446,9 +534,6 @@ function renderWorkoutView() {
             <h2 class="exercise-name">${ex.name}</h2>
             <div class="exercise-target">${ex.target}</div>
           </div>
-          <button class="btn-skip" onclick="confirmSkip()" title="Laite varattu – ohita">
-            ⏭ Ohita
-          </button>
         </div>
 
         <div class="sets-info">
@@ -474,29 +559,39 @@ function renderWorkoutView() {
           </div>
         ` : ''}
 
-        ${!allSetsDone ? `
-          <div class="set-input-card" id="set-input-area">
-            <div class="set-label">Sarja ${currentSet}</div>
-            <div class="input-row">
-              ${ex.type === 'weight' ? `
-                <div class="input-group">
-                  <label>Paino (kg)</label>
-                  <input type="number" id="weight-input" inputmode="decimal"
-                    placeholder="${weightPlaceholder}" min="0" step="0.5">
-                  ${weightHint ? `<div class="input-hint">${weightHint}</div>` : ''}
-                </div>
-              ` : ''}
-              <div class="input-group">
-                <label>${ex.type === 'time' ? 'Sekuntia' : ex.type === 'reps_per_side' ? 'Toistoa / puoli' : 'Toistoa'}</label>
-                <input type="number" id="reps-input" inputmode="numeric"
-                  placeholder="${ex.repsMax}" min="0">
-              </div>
+        ${!allSetsDone ? (
+          state.setTimer ? `<div id="set-timer-area"></div>` :
+          ex.type === 'time' ? `
+            <div class="set-input-card" id="set-input-area">
+              <div class="set-label">Sarja ${currentSet} – ${ex.repsMin}–${ex.repsMax} sek</div>
+              <button class="btn btn-primary btn-large" onclick="startSetTimer(${ex.repsMax})">
+                ▶ Käynnistä ajastin
+              </button>
             </div>
-            <button class="btn btn-primary btn-complete" onclick="handleCompleteSet()">
-              ✓ Sarja ${currentSet} valmis
-            </button>
-          </div>
-        ` : `
+          ` : `
+            <div class="set-input-card" id="set-input-area">
+              <div class="set-label">Sarja ${currentSet}</div>
+              <div class="input-row">
+                ${ex.type === 'weight' ? `
+                  <div class="input-group">
+                    <label>Paino (kg)</label>
+                    <input type="number" id="weight-input" inputmode="decimal"
+                      placeholder="${weightPlaceholder}" min="0" step="0.5">
+                    ${weightHint ? `<div class="input-hint">${weightHint}</div>` : ''}
+                  </div>
+                ` : ''}
+                <div class="input-group">
+                  <label>${ex.type === 'reps_per_side' ? 'Toistoa / puoli' : 'Toistoa'}</label>
+                  <input type="number" id="reps-input" inputmode="numeric"
+                    placeholder="${ex.repsMax}" min="0">
+                </div>
+              </div>
+              <button class="btn btn-primary btn-complete" onclick="handleCompleteSet()">
+                ✓ Sarja ${currentSet} valmis
+              </button>
+            </div>
+          `
+        ) : `
           <div class="all-sets-done">
             Kaikki sarjat tehty! 🎉
           </div>
@@ -508,6 +603,12 @@ function renderWorkoutView() {
           </div>
         ` : ''}
       </div>
+
+      ${!allSetsDone && !state.setTimer ? `
+        <button class="btn btn-skip-below" onclick="confirmSkip()">
+          ⏭ Laite varattu – ohita liike
+        </button>
+      ` : ''}
 
       ${allSetsDone && !state.restTimer ? `
         <button class="btn btn-primary btn-large btn-next" onclick="nextExercise()">
@@ -521,6 +622,7 @@ function renderWorkoutView() {
     </div>
   `;
 
+  if (state.setTimer) renderSetTimerHTML();
   if (state.restTimer) renderRestTimerHTML();
 }
 
@@ -545,7 +647,7 @@ function renderRestTimerHTML() {
             stroke-dasharray="${circ}"
             stroke-dashoffset="0"/>
         </svg>
-        <div class="timer-number" id="timer-num">${REST_DURATION}</div>
+        <div class="timer-number" id="timer-num">${state.restTimer ? state.restTimer.total : REST_DURATION}</div>
       </div>
       <button class="btn btn-ghost" onclick="skipRest()">Ohita lepo</button>
     </div>
@@ -559,7 +661,8 @@ function updateRestTimer() {
   const remaining = state.restTimer ? state.restTimer.remaining : 0;
   const r = 46;
   const circ = +(2 * Math.PI * r).toFixed(2);
-  const pct = Math.max(0, remaining / REST_DURATION);
+  const total = state.restTimer ? state.restTimer.total : REST_DURATION;
+  const pct = Math.max(0, remaining / total);
   const isUrgent = remaining <= 10;
 
   const arc = document.getElementById('timer-arc');

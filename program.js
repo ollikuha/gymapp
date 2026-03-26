@@ -6,6 +6,8 @@
 //   "weight"        – paino (kg) + toistot (oletus)
 //   "time"          – aikapohjainen, toistot = sekuntia (ei kg-kenttää)
 //   "reps_per_side" – toistot per puoli (ei kg-kenttää)
+//
+// restDuration – lepoaika sarjojen välissä sekunteina (oletus 90)
 
 const WORKOUT_PROGRAM = {
   A: {
@@ -19,6 +21,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 10,
         repsMax: 12,
+        restDuration: 90,
         note: "Pidä selkä tiukasti kiinni penkissä. Älä ojenna polvia täysin lukkoon yläasennossa."
       },
       {
@@ -29,6 +32,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 10,
         repsMax: 12,
+        restDuration: 90,
         note: "Tee lantionnostolaitteessa TAI selkä penkin reunalla käsipaino sylissä. Purista pakarat tiukaksi ylhäällä, pidä pito 1 sekunti."
       },
       {
@@ -39,6 +43,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 10,
         repsMax: 12,
+        restDuration: 75,
         note: "Rauhallinen liike, älä riuhdo."
       },
       {
@@ -49,6 +54,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 12,
         repsMax: 15,
+        restDuration: 60,
         note: "Tee liike hallitusti, älä \"pomputa\" painoja."
       },
       {
@@ -59,6 +65,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 12,
         repsMax: 15,
+        restDuration: 60,
         note: "Laite, istuen tai seisten."
       },
       {
@@ -69,6 +76,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 20,
         repsMax: 40,
+        restDuration: 60,
         note: "Polvet maassa. Pidä napa kevyesti sisäänvedettynä. Älä anna selän notkistua."
       }
     ]
@@ -84,6 +92,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 8,
         repsMax: 12,
+        restDuration: 90,
         note: "Leveä ote. Vedä tanko rinnan yläosaan, pidä hartiat alhaalla – älä nosta korviin."
       },
       {
@@ -94,6 +103,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 10,
         repsMax: 12,
+        restDuration: 90,
         note: "Alatalja käy myös. Vie lapaluut yhteen vedon lopussa."
       },
       {
@@ -104,6 +114,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 8,
         repsMax: 12,
+        restDuration: 90,
         note: "Laite."
       },
       {
@@ -114,6 +125,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 2,
         repsMin: 10,
         repsMax: 12,
+        restDuration: 60,
         note: "Laite. Varo jännittämästä niskaa."
       },
       {
@@ -124,6 +136,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 2,
         repsMin: 12,
         repsMax: 15,
+        restDuration: 60,
         note: "Talja, naru tai tanko. Pidä kyynärpäät kylkien vieressä koko liikkeen ajan."
       },
       {
@@ -134,6 +147,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 2,
         repsMin: 12,
         repsMax: 15,
+        restDuration: 60,
         note: "Käsipainot tai talja."
       },
       {
@@ -144,6 +158,7 @@ const WORKOUT_PROGRAM = {
         setsMax: 3,
         repsMin: 6,
         repsMax: 10,
+        restDuration: 60,
         note: "Makaa selällään, kädet ja jalat kohti kattoa. Laske vastakkaista kättä ja jalkaa hitaasti kohti lattiaa. Alaselän on pysyttävä koko ajan lattiassa!"
       }
     ]
