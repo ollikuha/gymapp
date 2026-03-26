@@ -1029,6 +1029,8 @@ async function renderHistory(container) {
     <div class="history-view">
       <div class="header">
         <h2>Treenihistoria</h2>
+        <button class="btn-history-action" onclick="exportHistory()">Vie</button>
+        <button class="btn-history-action" onclick="document.getElementById('import-file-input').click()">Tuo</button>
         ${progHistory.length > 0 ? `
           <button class="btn-edit-history ${historyEditMode ? 'active' : ''}"
             onclick="toggleHistoryEdit()">
@@ -1036,6 +1038,8 @@ async function renderHistory(container) {
           </button>
         ` : ''}
       </div>
+      <input type="file" id="import-file-input" accept=".json" style="display:none"
+        onchange="importHistory(this)">
       ${progHistory.length === 0
         ? '<div class="empty-state">Ei tallennettuja treenejä vielä.</div>'
         : reversed.map((session, i) => renderSessionCard(session, i)).join('')
@@ -1049,6 +1053,91 @@ async function renderHistory(container) {
       ` : ''}
     </div>
   `;
+}
+
+async function exportHistory() {
+  try {
+    const allSessions = await idbGetAll();
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      sessions: allSessions
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const today = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gymtracker-export-${today}.json`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast(`Viety ${allSessions.length} treeniä`);
+  } catch {
+    showToast('Vienti epäonnistui');
+  }
+}
+
+function validateImportPayload(payload) {
+  if (typeof payload !== 'object' || payload === null) return 'Tiedosto ei ole kelvollinen GymTracker-vienti.';
+  if (!Array.isArray(payload.sessions)) return 'Tiedostosta puuttuu sessions-kenttä.';
+  if (payload.sessions.length === 0) return 'Tiedostossa ei ole yhtään treeniä.';
+  const samples = [...payload.sessions.slice(0, 5), payload.sessions[payload.sessions.length - 1]];
+  for (const s of samples) {
+    if (typeof s !== 'object' || s === null) return 'Tiedosto sisältää virheellisiä treenejä.';
+    if (typeof s.id !== 'string' || !s.id.trim()) return 'Treeni puuttuu id-kentästä.';
+    if (typeof s.date !== 'string') return 'Treeni puuttuu date-kentästä.';
+    if (!Array.isArray(s.exercises)) return 'Treeni puuttuu exercises-kentästä.';
+  }
+  return null;
+}
+
+async function importHistory(inputElement) {
+  const file = inputElement.files[0];
+  inputElement.value = '';
+  if (!file) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    showToast('Virheellinen tiedosto');
+    return;
+  }
+
+  const err = validateImportPayload(payload);
+  if (err) { showModal({ title: 'Tuonti epäonnistui', message: err, confirmText: 'OK' }); return; }
+
+  const existing = await idbGetAll();
+  const existingIds = new Set(existing.map(s => s.id));
+  const toImport = payload.sessions.filter(s => !existingIds.has(s.id));
+  const skipped = payload.sessions.length - toImport.length;
+
+  if (toImport.length === 0) {
+    showModal({
+      title: 'Ei uusia treenejä',
+      message: `Kaikki ${skipped} treeniä on jo tallennettu.`,
+      confirmText: 'OK'
+    });
+    return;
+  }
+
+  try {
+    for (const session of toImport) await idbPut(session);
+  } catch {
+    showToast('Tallennus epäonnistui');
+    return;
+  }
+
+  const skippedNote = skipped > 0 ? ` (${skipped} ohitettu, jo olemassa)` : '';
+  showModal({
+    title: 'Tuonti valmis',
+    message: `Tuotu ${toImport.length} treeniä${skippedNote}.`,
+    confirmText: 'OK',
+    onConfirm: async () => { await renderHistory(document.getElementById('app')); }
+  });
 }
 
 async function toggleHistoryEdit() {
