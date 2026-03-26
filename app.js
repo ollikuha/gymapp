@@ -1,7 +1,6 @@
 // app.js – GymTracker sovelluksen logiikka ja UI
 // Lukee harjoitusohjelmat program.js:stä (PROGRAMS)
 
-const STORAGE_KEY  = 'gymtracker_history';
 const ACTIVE_KEY   = 'gymtracker_active';
 const PROGRAM_KEY  = 'gymtracker_program';
 const REST_DURATION = 90; // sekuntia
@@ -39,17 +38,45 @@ let state = {
   setTimer: null,              // { interval, remaining, total } – aikaharjoituksen sarja
 };
 
-// ── Storage ──────────────────────────────────────────────────────────────────
-function loadHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch {
-    return [];
-  }
+// ── IndexedDB ─────────────────────────────────────────────────────────────────
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('gymtracker', 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore('sessions', { keyPath: 'id' });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
 }
 
-function saveHistory(history) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+function idbGetAll() {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction('sessions', 'readonly').objectStore('sessions').getAll();
+    req.onsuccess = e => resolve(e.target.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function idbPut(session) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('sessions', 'readwrite');
+    tx.objectStore('sessions').put(session);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+function idbDeleteMany(ids) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('sessions', 'readwrite');
+    const store = tx.objectStore('sessions');
+    for (const id of ids) store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
 }
 
 // ── Program storage ───────────────────────────────────────────────────────────
@@ -67,39 +94,37 @@ function getActiveProgramData() {
 }
 
 // Palauttaa vain aktiivisen ohjelman historia-sessiot
-function loadProgramHistory() {
+async function loadProgramHistory() {
   const prog = getActiveProgramData();
-  return loadHistory().filter(s => (s.programId || 'default') === prog.id);
+  const all = await idbGetAll();
+  return all
+    .filter(s => (s.programId || 'default') === prog.id)
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // Palauttaa viimeksi tehdyn treenijakotyypin aktiivisessa ohjelmassa
-function getLastWorkoutOfProgram() {
+async function getLastWorkoutOfProgram() {
   const prog = getActiveProgramData();
-  const history = loadHistory();
-  for (let i = history.length - 1; i >= 0; i--) {
-    const entry = history[i];
-    if ((entry.programId || 'default') === prog.id) {
-      return entry.type;
-    }
+  const all = await idbGetAll();
+  for (let i = all.length - 1; i >= 0; i--) {
+    if ((all[i].programId || 'default') === prog.id) return all[i].type;
   }
   return null;
 }
 
-function getNextWorkoutType() {
+async function getNextWorkoutType() {
   const prog = getActiveProgramData();
   const types = Object.keys(prog.workouts);
-  const last = getLastWorkoutOfProgram();
+  const last = await getLastWorkoutOfProgram();
   if (!last) return types[0];
-  const idx = types.indexOf(last);
-  return types[(idx + 1) % types.length];
+  return types[(types.indexOf(last) + 1) % types.length];
 }
 
 // Palauttaa viimeksi käytetyn painon harjoitukselle (tai null)
-function getWeightSuggestion(exerciseName) {
-  const history = loadHistory();
-  for (let i = history.length - 1; i >= 0; i--) {
-    const session = history[i];
-    const ex = session.exercises.find(e => e.name === exerciseName);
+async function getWeightSuggestion(exerciseName) {
+  const all = await idbGetAll();
+  for (let i = all.length - 1; i >= 0; i--) {
+    const ex = all[i].exercises.find(e => e.name === exerciseName);
     if (ex && ex.sets.length > 0) {
       const lastSet = ex.sets[ex.sets.length - 1];
       if (lastSet.weight != null) return lastSet.weight;
@@ -131,8 +156,7 @@ function loadActiveSession() {
   } catch { return null; }
 }
 
-function saveWorkoutSession(workoutType, exercises) {
-  const history = loadHistory();
+async function saveWorkoutSession(workoutType, exercises) {
   const session = {
     id: Date.now().toString(),
     type: workoutType,
@@ -140,8 +164,7 @@ function saveWorkoutSession(workoutType, exercises) {
     exercises: exercises,
     programId: loadActiveProgramId() || 'default'
   };
-  history.push(session);
-  saveHistory(history);
+  await idbPut(session);
 }
 
 // ── Timer ────────────────────────────────────────────────────────────────────
@@ -286,17 +309,17 @@ function getCurrentRealIdx() {
   return state.exerciseOrder[state.currentExerciseIdx];
 }
 
-function skipCurrentExercise() {
+async function skipCurrentExercise() {
   if (state.exerciseOrder.length <= 1) return;
   const skipped = state.exerciseOrder.splice(state.currentExerciseIdx, 1)[0];
   state.exerciseOrder.push(skipped);
   state.currentSetIdx = 0;
   stopRestTimer();
   saveActiveSession();
-  renderWorkoutView();
+  await renderWorkoutView();
 }
 
-function completeSet(weight, reps) {
+async function completeSet(weight, reps) {
   const realIdx = getCurrentRealIdx();
   if (!state.completedSets[realIdx]) state.completedSets[realIdx] = [];
   state.completedSets[realIdx].push({ weight, reps });
@@ -308,33 +331,33 @@ function completeSet(weight, reps) {
   const targetSets = ex.setsMax;
   if (state.currentSetIdx >= targetSets) {
     startRestTimer(restDur, () => renderWorkoutView());
-    renderWorkoutAfterSet(true);
+    await renderWorkoutAfterSet(true);
   } else {
     startRestTimer(restDur, () => renderWorkoutView());
-    renderWorkoutAfterSet(false);
+    await renderWorkoutAfterSet(false);
   }
 }
 
-function nextExercise() {
+async function nextExercise() {
   state.currentExerciseIdx++;
   state.currentSetIdx = 0;
   stopRestTimer();
   stopSetTimer();
   if (state.currentExerciseIdx >= state.exerciseOrder.length) {
-    finishWorkout();
+    await finishWorkout();
   } else {
     saveActiveSession();
-    renderWorkoutView();
+    await renderWorkoutView();
   }
 }
 
-function finishWorkout() {
+async function finishWorkout() {
   const exercises = state.exerciseOrder.map(realIdx => {
     const ex = state.workout.exercises[realIdx];
     const sets = state.completedSets[realIdx] || [];
     return { name: ex.name, sets };
   });
-  saveWorkoutSession(state.workout.type, exercises);
+  await saveWorkoutSession(state.workout.type, exercises);
   clearActiveSession();
   setView('dashboard');
 }
@@ -375,20 +398,20 @@ function setView(view, pushHistory = true) {
   render();
 }
 
-function render() {
+async function render() {
   const app = document.getElementById('app');
   app.innerHTML = '';
-  if (state.view === 'dashboard') renderDashboard(app);
-  else if (state.view === 'workout') renderWorkoutView();
-  else if (state.view === 'history') renderHistory(app);
+  if (state.view === 'dashboard') await renderDashboard(app);
+  else if (state.view === 'workout') await renderWorkoutView();
+  else if (state.view === 'history') await renderHistory(app);
   else if (state.view === 'program-select') renderProgramSelect(app);
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-function renderDashboard(container) {
+async function renderDashboard(container) {
   const prog = getActiveProgramData();
-  const progHistory = loadProgramHistory();
-  const nextType = getNextWorkoutType();
+  const progHistory = await loadProgramHistory();
+  const nextType = await getNextWorkoutType();
   const lastSession = progHistory.length ? progHistory[progHistory.length - 1] : null;
 
   const lastInfo = lastSession
@@ -579,7 +602,7 @@ function renderWarmupCard() {
 }
 
 // ── Workout view ─────────────────────────────────────────────────────────────
-function renderWorkoutView() {
+async function renderWorkoutView() {
   const app = document.getElementById('app');
   const ex = getCurrentExercise();
   const realIdx = getCurrentRealIdx();
@@ -591,7 +614,7 @@ function renderWorkoutView() {
   const allSetsDone = state.currentSetIdx >= totalSets;
   const minSetsDone = ex.setsMin < ex.setsMax && state.currentSetIdx >= ex.setsMin;
 
-  const suggestion = ex.type === 'weight' ? getWeightSuggestion(ex.name) : null;
+  const suggestion = ex.type === 'weight' ? await getWeightSuggestion(ex.name) : null;
   const weightPlaceholder = suggestion != null ? `${suggestion}` : '';
   const weightHint = suggestion != null ? `Viimeksi: ${suggestion} kg` : '';
 
@@ -705,9 +728,8 @@ function renderWorkoutView() {
   if (state.restTimer) renderRestTimerHTML();
 }
 
-function renderWorkoutAfterSet(allDone) {
-  // Re-render ja näytä ajastin
-  renderWorkoutView();
+async function renderWorkoutAfterSet(allDone) {
+  await renderWorkoutView();
 }
 
 // Luo ajastimen HTML kerran – ei kutsuta uudelleen tikityksessä
@@ -759,12 +781,12 @@ function updateRestTimer() {
   numEl.classList.add('ticking');
 }
 
-function skipRest() {
+async function skipRest() {
   stopRestTimer();
-  renderWorkoutView();
+  await renderWorkoutView();
 }
 
-function handleCompleteSet() {
+async function handleCompleteSet() {
   const ex = getCurrentExercise();
   let weight = null;
   let reps = null;
@@ -777,7 +799,7 @@ function handleCompleteSet() {
   const rInput = document.getElementById('reps-input');
   reps = rInput && rInput.value !== '' ? parseInt(rInput.value, 10) : ex.repsMax;
 
-  completeSet(weight, reps);
+  await completeSet(weight, reps);
 }
 
 function formatSetResult(type, set) {
@@ -857,10 +879,10 @@ function hideExerciseNavigator() {
   el.addEventListener('transitionend', () => el.remove(), { once: true });
 }
 
-function jumpToExercise(targetOrderIdx) {
+async function jumpToExercise(targetOrderIdx) {
   if (targetOrderIdx === state.currentExerciseIdx) {
     hideExerciseNavigator();
-    skipCurrentExercise();
+    await skipCurrentExercise();
     return;
   }
   const [realIdx] = state.exerciseOrder.splice(targetOrderIdx, 1);
@@ -870,7 +892,7 @@ function jumpToExercise(targetOrderIdx) {
   stopSetTimer();
   saveActiveSession();
   hideExerciseNavigator();
-  renderWorkoutView();
+  await renderWorkoutView();
 }
 
 function confirmEndWorkout() {
@@ -928,8 +950,8 @@ function selectProgram(id) {
 let historyEditMode = false;
 let historySelected = new Set();
 
-function renderHistory(container) {
-  const progHistory = loadProgramHistory();
+async function renderHistory(container) {
+  const progHistory = await loadProgramHistory();
   const reversed = [...progHistory].reverse();
 
   container.innerHTML = `
@@ -958,19 +980,19 @@ function renderHistory(container) {
   `;
 }
 
-function toggleHistoryEdit() {
+async function toggleHistoryEdit() {
   historyEditMode = !historyEditMode;
   historySelected.clear();
-  renderHistory(document.getElementById('app'));
+  await renderHistory(document.getElementById('app'));
 }
 
-function toggleSelectSession(sessionId) {
+async function toggleSelectSession(sessionId) {
   if (historySelected.has(sessionId)) {
     historySelected.delete(sessionId);
   } else {
     historySelected.add(sessionId);
   }
-  renderHistory(document.getElementById('app'));
+  await renderHistory(document.getElementById('app'));
 }
 
 function confirmDeleteSelected() {
@@ -980,12 +1002,11 @@ function confirmDeleteSelected() {
     message: 'Poistettuja treenejä ei voi palauttaa.',
     confirmText: `Poista ${count} treeni${count > 1 ? 'ä' : ''}`,
     cancelText: 'Peruuta',
-    onConfirm: () => {
-      const history = loadHistory().filter(s => !historySelected.has(s.id));
-      saveHistory(history);
+    onConfirm: async () => {
+      await idbDeleteMany([...historySelected]);
       historyEditMode = false;
       historySelected.clear();
-      renderHistory(document.getElementById('app'));
+      await renderHistory(document.getElementById('app'));
     }
   });
 }
@@ -1074,7 +1095,8 @@ function showToast(msg) {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  db = await openDB();
   // Jos ohjelmaa ei ole valittu, näytetään ohjelmanvalinta ensin
   if (!loadActiveProgramId()) {
     state.view = 'program-select';
