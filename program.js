@@ -370,5 +370,138 @@ const PROGRAMS = [
         ]
       }
     }
+  },
+  {
+    id: 'puntti_ab_2026',
+    name: 'Puntti A/B 2026',
+    workouts: {
+      A: {
+        name: 'Treeni A – Kyykky & Penkki',
+        exercises: [
+          {
+            name: 'Takakyykky',
+            target: 'Reidet, pakarat ja keskivartalon tuki',
+            type: 'weight',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 5,
+            repsMax: 5,
+            restDuration: 150,
+            progression: { type: 'linear', weightIncrement: 2.5 },
+            note: 'Aloita 70 kg. Lämmittely: 5 min dynaamiset venyttelyt + 2 x 10 tyhjällä tangolla. Tee noin joka 4. viikko kevyt viikko: noin 60 kg tai ~10–15 % kevyempi.'
+          },
+          {
+            name: 'Penkkipunnerrus',
+            target: 'Rinta, ojentajat ja etuolkapäät',
+            type: 'weight',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 5,
+            repsMax: 5,
+            restDuration: 150,
+            progression: { type: 'linear', weightIncrement: 2.5 },
+            note: 'Aloita 50 kg. Tee noin joka 4. viikko kevyt viikko: noin 45 kg tai ~10–15 % kevyempi.'
+          },
+          {
+            name: 'Leuanveto (vastaote)',
+            target: 'Yläselkä, hauikset ja leveät selkälihakset',
+            type: 'reps',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 5,
+            repsMax: 8,
+            restDuration: 120,
+            note: 'Vedä hallitusti täyteen liikerataan. Lisää toistoja ennen lisäpainoa.'
+          },
+          {
+            name: 'Facepulls',
+            target: 'Takaolkapäät, lavan hallinta ja yläselkä',
+            type: 'weight',
+            setsMin: 2,
+            setsMax: 2,
+            repsMin: 15,
+            repsMax: 15,
+            restDuration: 75,
+            progression: { type: 'double', weightIncrement: 2.5 },
+            note: 'Pidä liike hallittuna kevyellä kuormalla.'
+          },
+          {
+            name: 'Lankkupito',
+            target: 'Keskivartalon staattinen tuki',
+            type: 'time',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 45,
+            repsMax: 45,
+            restDuration: 60,
+            note: 'Pidä vartalo suorana ja keskivartalo tiukkana koko sarjan ajan.'
+          }
+        ]
+      },
+      B: {
+        name: 'Treeni B – Mave & Lisäpainoleuat',
+        exercises: [
+          {
+            name: 'Maastaveto',
+            target: 'Takaketju, pakarat, selkä ja ote',
+            type: 'weight',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 5,
+            repsMax: 5,
+            restDuration: 180,
+            progression: { type: 'linear', weightIncrement: 5 },
+            note: 'Aloita 80 kg. Lämmittely: 2 min roikuntaa ja pyörittelyä + 2 x 8 lämmittelysarjat. Tee noin joka 4. viikko kevyt viikko: noin 70 kg tai ~10–15 % kevyempi.'
+          },
+          {
+            name: 'Lisäpainoleuat',
+            target: 'Yläselkä, hauikset ja leveät selkälihakset',
+            type: 'weight',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 3,
+            repsMax: 3,
+            restDuration: 150,
+            progression: { type: 'linear', weightIncrement: 1 },
+            note: 'Aloita 8 kg lisäpainolla. Jos kaikki sarjat eivät täyty, toista sama paino seuraavalla kerralla.'
+          },
+          {
+            name: 'Pystypunnerrus (kp)',
+            target: 'Olkapäät ja ojentajat',
+            type: 'weight',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 8,
+            repsMax: 8,
+            restDuration: 90,
+            progression: { type: 'double', weightIncrement: 2 },
+            note: 'Aloita 10 kg käsipainoilla. Kirjaa yhden käsipainon paino.'
+          },
+          {
+            name: 'Yhden jalan askelkyykky',
+            target: 'Pakarat, reidet ja tasapaino',
+            type: 'weight',
+            setsMin: 2,
+            setsMax: 2,
+            repsMin: 10,
+            repsMax: 10,
+            restDuration: 90,
+            progression: { type: 'double', weightIncrement: 2 },
+            note: 'Aloita 8 kg painoilla. Kirjaa yhden käsipainon paino ja tee liike hallitusti.'
+          },
+          {
+            name: 'Vatsat',
+            target: 'Keskivartalo',
+            type: 'reps',
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 30,
+            repsMax: 30,
+            restDuration: 60,
+            note: 'Tee hallitusti ilman heilautusta.'
+          }
+        ]
+      }
+    }
   }
 ];
