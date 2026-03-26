@@ -871,6 +871,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
+    // updateViaCache: 'none' → selain ei cacheta sw.js-tiedostoa itse
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        // Tarkista päivitys heti avattaessa
+        reg.update();
+      });
+
+    // Kun uusi SW ottaa kontrollin → lataa sivu uudelleen (saa uusimman version)
+    // Session resume -ominaisuus palauttaa kesken jääneen treenin
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
   }
 });
