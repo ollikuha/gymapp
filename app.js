@@ -120,17 +120,73 @@ async function getNextWorkoutType() {
   return types[(types.indexOf(last) + 1) % types.length];
 }
 
-// Palauttaa viimeksi käytetyn painon harjoitukselle (tai null)
-async function getWeightSuggestion(exerciseName) {
+// Palauttaa progressioehdotuksen harjoitukselle edellisen treenin perusteella.
+// exerciseDef on ohjelmatiedoston liikeobjekti (sisältää repsMin, repsMax, progression).
+// Palauttaa: { weight, reps, isProgressed, hint }
+//   weight      – ehdotettu paino (kg) tai null
+//   reps        – ehdotetut toistot tai null (käytä ohjelman repsMax)
+//   isProgressed – true jos paino nousee
+//   hint        – näytettävä teksti
+async function getProgressionSuggestion(exerciseName, exerciseDef) {
   const all = await idbGetAll();
+  let lastSets = null;
+  let lastWeight = null;
+
   for (let i = all.length - 1; i >= 0; i--) {
     const ex = all[i].exercises.find(e => e.name === exerciseName);
     if (ex && ex.sets.length > 0) {
-      const lastSet = ex.sets[ex.sets.length - 1];
-      if (lastSet.weight != null) return lastSet.weight;
+      lastSets = ex.sets;
+      const weightSet = ex.sets.slice().reverse().find(s => s.weight != null);
+      if (weightSet) lastWeight = weightSet.weight;
+      break;
     }
   }
-  return null;
+
+  if (lastSets === null || lastWeight === null) {
+    return { weight: null, reps: null, isProgressed: false, hint: '' };
+  }
+
+  const prog = exerciseDef && exerciseDef.progression;
+
+  if (!prog) {
+    return { weight: lastWeight, reps: null, isProgressed: false, hint: `Viimeksi: ${lastWeight} kg` };
+  }
+
+  if (prog.type === 'linear') {
+    const newWeight = Math.round((lastWeight + prog.weightIncrement) * 100) / 100;
+    return {
+      weight: newWeight,
+      reps: null,
+      isProgressed: true,
+      hint: `Ehdotus: ${newWeight} kg ↑ (+${prog.weightIncrement} kg, lineaarinen)`
+    };
+  }
+
+  if (prog.type === 'double') {
+    const repsMin = exerciseDef.repsMin;
+    const repsMax = exerciseDef.repsMax;
+    const minReps = Math.min(...lastSets.map(s => s.reps));
+
+    if (minReps >= repsMax) {
+      const newWeight = Math.round((lastWeight + prog.weightIncrement) * 100) / 100;
+      return {
+        weight: newWeight,
+        reps: repsMin,
+        isProgressed: true,
+        hint: `Ehdotus: ${newWeight} kg ↑ (+${prog.weightIncrement} kg, kaikki sarjat ${repsMax} toistolla)`
+      };
+    } else {
+      const targetReps = Math.min(minReps + 1, repsMax);
+      return {
+        weight: lastWeight,
+        reps: targetReps,
+        isProgressed: false,
+        hint: `Viimeksi: ${lastWeight} kg – tavoite ${targetReps} toistoa`
+      };
+    }
+  }
+
+  return { weight: lastWeight, reps: null, isProgressed: false, hint: `Viimeksi: ${lastWeight} kg` };
 }
 
 // ── Active session persistence ────────────────────────────────────────────────
@@ -614,9 +670,11 @@ async function renderWorkoutView() {
   const allSetsDone = state.currentSetIdx >= totalSets;
   const minSetsDone = ex.setsMin < ex.setsMax && state.currentSetIdx >= ex.setsMin;
 
-  const suggestion = ex.type === 'weight' ? await getWeightSuggestion(ex.name) : null;
-  const weightPlaceholder = suggestion != null ? `${suggestion}` : '';
-  const weightHint = suggestion != null ? `Viimeksi: ${suggestion} kg` : '';
+  const suggestion = ex.type === 'weight' ? await getProgressionSuggestion(ex.name, ex) : { weight: null, reps: null, isProgressed: false, hint: '' };
+  const weightPlaceholder = suggestion.weight != null ? `${suggestion.weight}` : '';
+  const repsPlaceholder = suggestion.reps != null ? `${suggestion.reps}` : `${ex.repsMax}`;
+  const weightHint = suggestion.hint || '';
+  const hintClass = suggestion.isProgressed ? 'input-hint progressed' : 'input-hint';
 
   app.innerHTML = `
     <div class="workout-view">
@@ -679,13 +737,13 @@ async function renderWorkoutView() {
                     <label>Paino (kg)</label>
                     <input type="number" id="weight-input" inputmode="decimal"
                       placeholder="${weightPlaceholder}" min="0" step="0.5">
-                    ${weightHint ? `<div class="input-hint">${weightHint}</div>` : ''}
+                    ${weightHint ? `<div class="${hintClass}">${weightHint}</div>` : ''}
                   </div>
                 ` : ''}
                 <div class="input-group">
                   <label>${ex.type === 'reps_per_side' ? 'Toistoa / puoli' : 'Toistoa'}</label>
                   <input type="number" id="reps-input" inputmode="numeric"
-                    placeholder="${ex.repsMax}" min="0">
+                    placeholder="${repsPlaceholder}" min="0">
                 </div>
               </div>
               <button class="btn btn-primary btn-complete" onclick="handleCompleteSet()">

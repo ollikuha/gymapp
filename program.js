@@ -33,6 +33,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 12,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 5 },
             note: "Pidä selkä tiukasti kiinni penkissä. Älä ojenna polvia täysin lukkoon yläasennossa."
           },
           {
@@ -44,6 +45,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 12,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Tee lantionnostolaitteessa TAI selkä penkin reunalla käsipaino sylissä. Purista pakarat tiukaksi ylhäällä, pidä pito 1 sekunti."
           },
           {
@@ -55,6 +57,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 12,
             restDuration: 75,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Rauhallinen liike, älä riuhdo."
           },
           {
@@ -66,6 +69,7 @@ const PROGRAMS = [
             repsMin: 12,
             repsMax: 15,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Tee liike hallitusti, älä \"pomputa\" painoja."
           },
           {
@@ -77,6 +81,7 @@ const PROGRAMS = [
             repsMin: 12,
             repsMax: 15,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Laite, istuen tai seisten."
           },
           {
@@ -104,6 +109,7 @@ const PROGRAMS = [
             repsMin: 8,
             repsMax: 12,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Leveä ote. Vedä tanko rinnan yläosaan, pidä hartiat alhaalla – älä nosta korviin."
           },
           {
@@ -115,6 +121,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 12,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Alatalja käy myös. Vie lapaluut yhteen vedon lopussa."
           },
           {
@@ -126,6 +133,7 @@ const PROGRAMS = [
             repsMin: 8,
             repsMax: 12,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Laite."
           },
           {
@@ -137,6 +145,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 12,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Laite. Varo jännittämästä niskaa."
           },
           {
@@ -148,6 +157,7 @@ const PROGRAMS = [
             repsMin: 12,
             repsMax: 15,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Talja, naru tai tanko. Pidä kyynärpäät kylkien vieressä koko liikkeen ajan."
           },
           {
@@ -159,6 +169,7 @@ const PROGRAMS = [
             repsMin: 12,
             repsMax: 15,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Käsipainot tai talja."
           },
           {
@@ -194,6 +205,7 @@ const PROGRAMS = [
             repsMin: 5,
             repsMax: 6,
             restDuration: 120,
+            progression: { type: "linear", weightIncrement: 2.5 },
             note: "Pääliike. Selkä neutraalina, pitkä eksentrinen vaihe. Jätä 1–2 toistoa varastoon."
           },
           {
@@ -205,6 +217,7 @@ const PROGRAMS = [
             repsMin: 6,
             repsMax: 8,
             restDuration: 90,
+            progression: { type: "linear", weightIncrement: 2.5 },
             note: "Toistot per jalka. Kevyt etunoja, paina työ enemmän pakaralle kuin etureidelle."
           },
           {
@@ -216,6 +229,7 @@ const PROGRAMS = [
             repsMin: 6,
             repsMax: 8,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Pidä 1 sekunnin pito yläasennossa. Älä yliojenna alaselkää."
           },
           {
@@ -227,6 +241,7 @@ const PROGRAMS = [
             repsMin: 10,
             repsMax: 15,
             restDuration: 60,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Seisten Smithissä korokkeella. Täysi liikerata ja rauhallinen alaslasku."
           },
           {
@@ -265,6 +280,7 @@ const PROGRAMS = [
             repsMin: 6,
             repsMax: 8,
             restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Toistot per jalka. Työnnä itsesi ylös etummaisen jalan avulla, ei ponnistusta takajalalla."
           },
           {
@@ -276,6 +292,7 @@ const PROGRAMS = [
             repsMin: 8,
             repsMax: 10,
             restDuration: 75,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Hallitut toistot. Pidä lantio paikoillaan."
           },
           {
@@ -287,6 +304,7 @@ const PROGRAMS = [
             repsMin: 8,
             repsMax: 12,
             restDuration: 75,
+            progression: { type: "double", weightIncrement: 2.5 },
             note: "Vedä kyynärpäät taakse, älä nosta hartioita korviin."
           },
           {
@@ -298,6 +316,7 @@ const PROGRAMS = [
             repsMin: 5,
             repsMax: 8,
             restDuration: 90,
+            progression: { type: "linear", weightIncrement: 2.5 },
             note: "Tee kehonpainolla tai lisäpainolla. Jos et saa toistoja haarukkaan, käytä avustusta."
           },
           {
