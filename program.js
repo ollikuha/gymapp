@@ -177,199 +177,150 @@ const PROGRAMS = [
     }
   },
 
-  // ── Ohjelma 2: Kolmijako A/B/C ───────────────────────────────────────────
+  // ── Ohjelma 2: Triathlon 2-jakoinen ─────────────────────────────────────
   {
-    id: 'kolmijako',
-    name: 'Kolmijako',
+    id: 'triathlon_2_jakoinen',
+    name: 'Triathlon 2-jakoinen',
     workouts: {
       A: {
-        name: "Jalat + Pakarat",
+        name: "Voima A – Takaketju + yksijalkainen voima",
         exercises: [
           {
-            name: "Jalkaprässi",
-            target: "Etureidet ja pakarat",
+            name: "Romanialainen maastaveto",
+            target: "Takareidet, pakarat ja lantion ojennusvoima",
             type: "weight",
-            setsMin: 4,
+            setsMin: 3,
             setsMax: 4,
-            repsMin: 8,
-            repsMax: 12,
+            repsMin: 5,
+            repsMax: 6,
             restDuration: 120,
-            note: "Pidä selkä tiukasti kiinni penkissä. Älä ojenna polvia täysin lukkoon yläasennossa."
+            note: "Pääliike. Selkä neutraalina, pitkä eksentrinen vaihe. Jätä 1–2 toistoa varastoon."
+          },
+          {
+            name: "Bulgarialainen askelkyykky",
+            target: "Yksijalkainen voimantuotto, pakarat ja lantion hallinta",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 6,
+            repsMax: 8,
+            restDuration: 90,
+            note: "Toistot per jalka. Kevyt etunoja, paina työ enemmän pakaralle kuin etureidelle."
           },
           {
             name: "Lantionnosto",
-            target: "Pakarat",
+            target: "Pakarat ja juoksun loppuvaiheen työntö",
             type: "weight",
-            setsMin: 4,
-            setsMax: 4,
-            repsMin: 10,
-            repsMax: 12,
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 6,
+            repsMax: 8,
             restDuration: 90,
-            note: "Purista pakarat tiukaksi ylhäällä, pidä pito 1 sekunti."
+            note: "Pidä 1 sekunnin pito yläasennossa. Älä yliojenna alaselkää."
           },
           {
-            name: "Reiden koukistus",
-            target: "Takareidet",
+            name: "Pohkeet Smithissä",
+            target: "Pohkeet ja soleus, juoksun iskunvastaanotto",
             type: "weight",
             setsMin: 3,
             setsMax: 3,
             repsMin: 10,
-            repsMax: 12,
-            restDuration: 75,
-            note: "Rauhallinen liike, älä riuhdo."
-          },
-          {
-            name: "Lonkan loitonnus",
-            target: "Pakaran sivuosa",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 12,
             repsMax: 15,
             restDuration: 60,
-            note: "Tee liike hallitusti, älä \"pomputa\" painoja."
+            note: "Seisten Smithissä korokkeella. Täysi liikerata ja rauhallinen alaslasku."
           },
           {
-            name: "Pohkeet",
-            target: "Pohkeet",
-            type: "weight",
-            setsMin: 3,
+            name: "Pallof press",
+            target: "Keskivartalon antirotaatio ja ajoasennon tuki",
+            type: "reps_per_side",
+            setsMin: 2,
             setsMax: 3,
-            repsMin: 15,
-            repsMax: 20,
-            restDuration: 60,
-            note: "Laite, istuen tai seisten."
+            repsMin: 8,
+            repsMax: 12,
+            restDuration: 45,
+            note: "Toistot per puoli. Pidä lantio ja rintakehä täysin vakaana."
+          },
+          {
+            name: "Sivulankku",
+            target: "Lantion sivutuki ja juoksun hallinta",
+            type: "time",
+            setsMin: 2,
+            setsMax: 3,
+            repsMin: 20,
+            repsMax: 40,
+            restDuration: 45,
+            note: "Sekuntia per puoli. Suora linja nilkasta olkapäähän."
           }
         ]
       },
       B: {
-        name: "Rintalihas + Ojentajat + Olkapäät",
+        name: "Voima B – Yläselkä + lantio + juoksutuki",
         exercises: [
           {
-            name: "Rintaprässi",
-            target: "Rintalihakset",
+            name: "Askelnousu penkille",
+            target: "Yksijalkainen voima, pakarat ja juoksuspesifi työntö",
             type: "weight",
-            setsMin: 4,
-            setsMax: 4,
-            repsMin: 8,
-            repsMax: 12,
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 6,
+            repsMax: 8,
             restDuration: 90,
-            note: "Laite tai käsipainot. Pidä lapaluut kiinni penkissä."
+            note: "Toistot per jalka. Työnnä itsesi ylös etummaisen jalan avulla, ei ponnistusta takajalalla."
           },
           {
-            name: "Vinopenkkiprässi",
-            target: "Rintalihakset (yläosa)",
+            name: "Reiden koukistus",
+            target: "Takareidet ja juoksun väsymiskestävyys",
             type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 10,
-            repsMax: 12,
-            restDuration: 90,
-            note: "Käsipainot tai laite. 30–45° kulma."
-          },
-          {
-            name: "Olkapääprässi",
-            target: "Olkapäät",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 10,
-            repsMax: 12,
-            restDuration: 75,
-            note: "Laite tai käsipainot. Varo jännittämästä niskaa."
-          },
-          {
-            name: "Sivunousu",
-            target: "Olkapäiden sivuosa",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 12,
-            repsMax: 15,
-            restDuration: 60,
-            note: "Käsipainot. Nosta kyynärpäät hartioiden tasolle, ei korkeammalle."
-          },
-          {
-            name: "Ojentajapunnerrus",
-            target: "Ojentajat (\"allit\")",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 12,
-            repsMax: 15,
-            restDuration: 60,
-            note: "Talja, naru tai tanko. Pidä kyynärpäät kylkien vieressä koko liikkeen ajan."
-          }
-        ]
-      },
-      C: {
-        name: "Selkä + Hauikset + Vatsa",
-        exercises: [
-          {
-            name: "Ylätalja",
-            target: "Selän leveys ja ryhti",
-            type: "weight",
-            setsMin: 4,
-            setsMax: 4,
-            repsMin: 8,
-            repsMax: 12,
-            restDuration: 90,
-            note: "Leveä ote. Vedä tanko rinnan yläosaan, pidä hartiat alhaalla – älä nosta korviin."
-          },
-          {
-            name: "Soutulaite",
-            target: "Selän keskiosa",
-            type: "weight",
-            setsMin: 4,
-            setsMax: 4,
-            repsMin: 10,
-            repsMax: 12,
-            restDuration: 90,
-            note: "Alatalja käy myös. Vie lapaluut yhteen vedon lopussa."
-          },
-          {
-            name: "Hauiskääntö",
-            target: "Hauikset",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 10,
-            repsMax: 15,
-            restDuration: 60,
-            note: "Käsipainot tai talja."
-          },
-          {
-            name: "Vasarakääntö",
-            target: "Hauikset ja kyynärvarret",
-            type: "weight",
-            setsMin: 3,
-            setsMax: 3,
-            repsMin: 12,
-            repsMax: 15,
-            restDuration: 60,
-            note: "Käsipainot neutraaliote (peukalot ylös)."
-          },
-          {
-            name: "Dead Bug",
-            target: "Vatsalihasten hallinta",
-            type: "reps_per_side",
             setsMin: 3,
             setsMax: 3,
             repsMin: 8,
             repsMax: 10,
-            restDuration: 60,
-            note: "Makaa selällään, kädet ja jalat kohti kattoa. Laske vastakkaista kättä ja jalkaa hitaasti kohti lattiaa. Alaselän on pysyttävä koko ajan lattiassa!"
+            restDuration: 75,
+            note: "Hallitut toistot. Pidä lantio paikoillaan."
           },
           {
-            name: "Lankku",
-            target: "Syvät vatsalihakset",
-            type: "time",
+            name: "Soutulaite",
+            target: "Yläselkä, lapatuen voima ja ajoasento",
+            type: "weight",
             setsMin: 3,
             setsMax: 3,
-            repsMin: 20,
-            repsMax: 45,
-            restDuration: 60,
-            note: "Polvet maassa tai varpaat. Pidä napa kevyesti sisäänvedettynä."
+            repsMin: 8,
+            repsMax: 12,
+            restDuration: 75,
+            note: "Vedä kyynärpäät taakse, älä nosta hartioita korviin."
+          },
+          {
+            name: "Leuanveto",
+            target: "Leveä selkä, ryhti ja uintia tukeva veto",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 5,
+            repsMax: 8,
+            restDuration: 90,
+            note: "Tee kehonpainolla tai lisäpainolla. Jos et saa toistoja haarukkaan, käytä avustusta."
+          },
+          {
+            name: "Dead Bug",
+            target: "Keskivartalon hallinta ja lantion kontrolli",
+            type: "reps_per_side",
+            setsMin: 2,
+            setsMax: 3,
+            repsMin: 6,
+            repsMax: 10,
+            restDuration: 45,
+            note: "Toistot per puoli. Alaselkä pysyy koko ajan kiinni lattiassa."
+          },
+          {
+            name: "Copenhagen lankku",
+            target: "Lähentäjät, lantion stabiliteetti ja juoksun tukilihakset",
+            type: "time",
+            setsMin: 2,
+            setsMax: 2,
+            repsMin: 15,
+            repsMax: 30,
+            restDuration: 45,
+            note: "Sekuntia per puoli. Aloita polvitukiversiolla jos täysi versio on liian raskas."
           }
         ]
       }
