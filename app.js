@@ -426,9 +426,7 @@ function renderDashboard(container) {
       <div class="header">
         <div class="header-top">
           <h1 class="app-title">💪 GymTracker</h1>
-          <button class="btn-program-switch" onclick="setView('program-select')">
-            ${prog.name} ⚙
-          </button>
+          <button class="btn-program-switch" onclick="setView('program-select')" title="${prog.name}">⚙</button>
         </div>
         <p class="app-subtitle">Seuraa, kehity, voita.</p>
       </div>
