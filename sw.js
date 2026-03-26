@@ -1,4 +1,4 @@
-const CACHE = 'gymtracker-v5';
+const CACHE = 'gymtracker-v6';
 const FILES = [
   './',
   './index.html',
@@ -8,10 +8,15 @@ const FILES = [
   './icon.svg'
 ];
 
-// Asenna: cacheta kaikki tiedostot
+// Asenna: hae tiedostot suoraan verkosta (ohita HTTP-välimuisti), tallenna cacheen
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(FILES))
+    caches.open(CACHE).then(cache =>
+      Promise.all(FILES.map(url =>
+        fetch(new Request(url, { cache: 'reload' }))
+          .then(res => cache.put(url, res))
+      ))
+    )
   );
   self.skipWaiting();
 });
@@ -26,15 +31,13 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Network-first: kokeile verkkoa ensin, epäonnistuessa cache
+// Network-first: kokeile verkkoa ensin (ohita HTTP-välimuisti), epäonnistuessa cache
 self.addEventListener('fetch', e => {
-  // Käsittele vain GET-pyynnöt omaan originiin
   if (e.request.method !== 'GET') return;
 
   e.respondWith(
-    fetch(e.request)
+    fetch(new Request(e.request, { cache: 'no-cache' }))
       .then(response => {
-        // Päivitä cache uusimmalla versiolla
         const clone = response.clone();
         caches.open(CACHE).then(cache => cache.put(e.request, clone));
         return response;

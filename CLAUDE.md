@@ -10,10 +10,10 @@ Avaa `sw.js` ja kasvata versionumeroa yhdellä:
 
 ```js
 // Ennen:
-const CACHE = 'gymtracker-v4';
+const CACHE = 'gymtracker-v5';
 
 // Jälkeen:
-const CACHE = 'gymtracker-v5';
+const CACHE = 'gymtracker-v6';
 ```
 
 ### Miksi tämä on pakollinen
