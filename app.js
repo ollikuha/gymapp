@@ -43,9 +43,13 @@ let db = null;
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('gymtracker', 1);
+    const req = indexedDB.open('gymtracker', 2);
     req.onupgradeneeded = e => {
-      e.target.result.createObjectStore('sessions', { keyPath: 'id' });
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains('sessions'))
+        database.createObjectStore('sessions', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('programs'))
+        database.createObjectStore('programs', { keyPath: 'id' });
     };
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
@@ -79,6 +83,32 @@ function idbDeleteMany(ids) {
   });
 }
 
+function idbGetAllPrograms() {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction('programs', 'readonly').objectStore('programs').getAll();
+    req.onsuccess = e => resolve(e.target.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function idbPutProgram(prog) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('programs', 'readwrite');
+    tx.objectStore('programs').put(prog);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+function idbDeleteProgram(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('programs', 'readwrite');
+    tx.objectStore('programs').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
 // ── Program storage ───────────────────────────────────────────────────────────
 function loadActiveProgramId() {
   return localStorage.getItem(PROGRAM_KEY) || null;
@@ -88,14 +118,23 @@ function saveActiveProgramId(id) {
   localStorage.setItem(PROGRAM_KEY, id);
 }
 
-function getActiveProgramData() {
+async function loadLocalPrograms() {
+  return idbGetAllPrograms();
+}
+
+async function getAllPrograms() {
+  return [...PROGRAMS, ...await loadLocalPrograms()];
+}
+
+async function getActiveProgramData() {
   const id = loadActiveProgramId();
-  return PROGRAMS.find(p => p.id === id) || PROGRAMS[0];
+  const all = await getAllPrograms();
+  return all.find(p => p.id === id) || PROGRAMS[0];
 }
 
 // Palauttaa vain aktiivisen ohjelman historia-sessiot
 async function loadProgramHistory() {
-  const prog = getActiveProgramData();
+  const prog = await getActiveProgramData();
   const all = await idbGetAll();
   return all
     .filter(s => (s.programId || 'default') === prog.id)
@@ -104,7 +143,7 @@ async function loadProgramHistory() {
 
 // Palauttaa viimeksi tehdyn treenijakotyypin aktiivisessa ohjelmassa
 async function getLastWorkoutOfProgram() {
-  const prog = getActiveProgramData();
+  const prog = await getActiveProgramData();
   const all = await idbGetAll();
   for (let i = all.length - 1; i >= 0; i--) {
     if ((all[i].programId || 'default') === prog.id) return all[i].type;
@@ -113,7 +152,7 @@ async function getLastWorkoutOfProgram() {
 }
 
 async function getNextWorkoutType() {
-  const prog = getActiveProgramData();
+  const prog = await getActiveProgramData();
   const types = Object.keys(prog.workouts);
   const last = await getLastWorkoutOfProgram();
   if (!last) return types[0];
@@ -355,8 +394,9 @@ function stopRestTimer() {
 }
 
 // ── Workout logic ────────────────────────────────────────────────────────────
-function startWorkout(type) {
-  const program = getActiveProgramData().workouts[type];
+async function startWorkout(type) {
+  const prog = await getActiveProgramData();
+  const program = prog.workouts[type];
   const exerciseCount = program.exercises.length;
   state.workout = { type, exercises: program.exercises };
   state.exerciseOrder = Array.from({ length: exerciseCount }, (_, i) => i);
@@ -473,12 +513,12 @@ async function render() {
   if (state.view === 'dashboard') await renderDashboard(app);
   else if (state.view === 'workout') await renderWorkoutView();
   else if (state.view === 'history') await renderHistory(app);
-  else if (state.view === 'program-select') renderProgramSelect(app);
+  else if (state.view === 'program-select') await renderProgramSelect(app);
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 async function renderDashboard(container) {
-  const prog = getActiveProgramData();
+  const prog = await getActiveProgramData();
   const progHistory = await loadProgramHistory();
   const nextType = await getNextWorkoutType();
   const lastSession = progHistory.length ? progHistory[progHistory.length - 1] : null;
@@ -495,7 +535,7 @@ async function renderDashboard(container) {
   if (types.length === 1) {
     carouselHTML = `
       <div class="single-card-wrap">
-        ${renderWorkoutSwipeCard(types[0], true)}
+        ${renderWorkoutSwipeCard(types[0], true, prog)}
       </div>
     `;
   } else {
@@ -504,7 +544,7 @@ async function renderDashboard(container) {
     carouselHTML = `
       <div class="swipe-wrapper" id="swipe-wrapper">
         <div class="swipe-track" id="swipe-track">
-          ${carouselItems.map(t => renderWorkoutSwipeCard(t, t === nextType)).join('')}
+          ${carouselItems.map(t => renderWorkoutSwipeCard(t, t === nextType, prog)).join('')}
         </div>
       </div>
       <div class="swipe-dots" id="swipe-dots">
@@ -539,8 +579,8 @@ async function renderDashboard(container) {
   if (types.length > 1) initSwipe(orderedTypes);
 }
 
-function renderWorkoutSwipeCard(type, isRecommended) {
-  const program = getActiveProgramData().workouts[type];
+function renderWorkoutSwipeCard(type, isRecommended, prog) {
+  const program = prog.workouts[type];
   const label = isRecommended ? 'Seuraava treeni' : 'Vaihtoehtoinen treeni';
   return `
     <div class="swipe-card ${type === 'B' ? 'type-b' : ''}">
@@ -977,9 +1017,29 @@ function confirmEndWorkout() {
 }
 
 // ── Program select ────────────────────────────────────────────────────────────
-function renderProgramSelect(container) {
+async function renderProgramSelect(container) {
   const currentId = loadActiveProgramId() || PROGRAMS[0].id;
   const hasProgram = loadActiveProgramId() !== null;
+  const localPrograms = await loadLocalPrograms();
+
+  function programItemHTML(prog, isLocal) {
+    const workoutTypes = Object.keys(prog.workouts);
+    const isActive = prog.id === currentId;
+    return `
+      <div class="program-item ${isActive ? 'active' : ''}" onclick="selectProgram('${prog.id}')">
+        <div class="program-item-main">
+          <div class="program-item-name">${prog.name}</div>
+          <div class="program-item-splits">
+            ${workoutTypes.map(t => `<span class="program-split-chip">${prog.workouts[t].name}</span>`).join('')}
+          </div>
+        </div>
+        <div class="program-item-right">
+          ${isActive ? '<span class="program-active-badge">Aktiivinen</span>' : ''}
+          ${isLocal ? `<button class="btn-program-delete" onclick="event.stopPropagation(); deleteLocalProgram('${prog.id}')" aria-label="Poista ohjelma">🗑</button>` : (!isActive ? '<span class="program-select-arrow">›</span>' : '')}
+        </div>
+      </div>
+    `;
+  }
 
   container.innerHTML = `
     <div class="program-select-view">
@@ -987,25 +1047,23 @@ function renderProgramSelect(container) {
         ${hasProgram ? `<button class="btn-back" onclick="setView('dashboard')">←</button>` : ''}
         <h2>Valitse ohjelma</h2>
       </div>
+      <div class="program-section-title">Ohjelmat</div>
       <div class="program-list">
-        ${PROGRAMS.map(prog => {
-          const workoutTypes = Object.keys(prog.workouts);
-          const isActive = prog.id === currentId;
-          return `
-            <div class="program-item ${isActive ? 'active' : ''}" onclick="selectProgram('${prog.id}')">
-              <div class="program-item-main">
-                <div class="program-item-name">${prog.name}</div>
-                <div class="program-item-splits">
-                  ${workoutTypes.map(t => `<span class="program-split-chip">${prog.workouts[t].name}</span>`).join('')}
-                </div>
-              </div>
-              <div class="program-item-right">
-                ${isActive ? '<span class="program-active-badge">Aktiivinen</span>' : '<span class="program-select-arrow">›</span>'}
-              </div>
-            </div>
-          `;
-        }).join('')}
+        ${PROGRAMS.map(p => programItemHTML(p, false)).join('')}
       </div>
+      <div class="program-section-title">Omat ohjelmat</div>
+      <div class="program-list">
+        ${localPrograms.length > 0
+          ? localPrograms.map(p => programItemHTML(p, true)).join('')
+          : '<div class="program-empty">Ei tuotuja ohjelmia</div>'
+        }
+      </div>
+      <div class="program-actions">
+        <button class="btn btn-secondary" onclick="document.getElementById('local-program-import-input').click()">📥 Tuo ohjelma</button>
+        <button class="btn btn-ghost" onclick="downloadProgramTemplate()">📄 Lataa pohja</button>
+      </div>
+      <input type="file" id="local-program-import-input" accept=".json" style="display:none"
+        onchange="importLocalProgram(this)">
     </div>
   `;
 }
@@ -1015,6 +1073,150 @@ function selectProgram(id) {
   historyEditMode = false;
   historySelected.clear();
   setView('dashboard');
+}
+
+async function deleteLocalProgram(id) {
+  await idbDeleteProgram(id);
+  if (loadActiveProgramId() === id) saveActiveProgramId(PROGRAMS[0].id);
+  setView('program-select');
+}
+
+async function importLocalProgram(inputElement) {
+  const file = inputElement.files[0];
+  inputElement.value = '';
+  if (!file) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    showModal({ title: 'Virhe', message: 'Tiedosto ei ole kelvollinen JSON.', confirmText: 'OK' });
+    return;
+  }
+
+  delete payload._description;
+
+  if (typeof payload.id !== 'string' || !payload.id.trim()) {
+    showModal({ title: 'Virhe', message: 'Ohjelmalta puuttuu "id"-kenttä (merkkijono).', confirmText: 'OK' });
+    return;
+  }
+  if (typeof payload.name !== 'string' || !payload.name.trim()) {
+    showModal({ title: 'Virhe', message: 'Ohjelmalta puuttuu "name"-kenttä (merkkijono).', confirmText: 'OK' });
+    return;
+  }
+  if (!payload.workouts || typeof payload.workouts !== 'object' || Object.keys(payload.workouts).length === 0) {
+    showModal({ title: 'Virhe', message: '"workouts"-kenttä puuttuu tai on tyhjä.', confirmText: 'OK' });
+    return;
+  }
+  for (const [key, w] of Object.entries(payload.workouts)) {
+    if (!w.name || !Array.isArray(w.exercises)) {
+      showModal({ title: 'Virhe', message: `Treeni "${key}" vaatii "name"- ja "exercises"-kentät.`, confirmText: 'OK' });
+      return;
+    }
+  }
+
+  if (PROGRAMS.some(p => p.id === payload.id)) {
+    showModal({ title: 'Virhe', message: `ID "${payload.id}" on jo käytössä sisäänrakennetussa ohjelmassa. Vaihda tiedostossa "id"-kentän arvo.`, confirmText: 'OK' });
+    return;
+  }
+
+  await idbPutProgram(payload);
+  setView('program-select');
+  showToast(`Ohjelma "${payload.name}" tuotu!`);
+}
+
+function downloadProgramTemplate() {
+  const template = {
+    _description: "Tämä on GymTracker-ohjelman pohja tekoälykäyttöön. Muokkaa kenttiä luodaksesi oman ohjelman ja tuo se sovellukseen. Poista tai jätä _description-kenttä – se jätetään huomiotta tuonnissa.\n\nKentät:\n- id: Uniikki tunniste, ei välilyöntejä (esim. 'oma-ohjelma-2025')\n- name: Ohjelman nimi käyttäjälle\n- workouts: Objekti, jonka avaimet ovat treenijako-tyypit (esim. A, B, C). Voit käyttää mitä tahansa kirjaimia tai lyhenteitä.\n  - name: Treenin nimi (näkyy käyttäjälle)\n  - exercises: Lista harjoituksista\n    - name: Harjoituksen nimi (käytetään historian hakuun – pidä johdonmukaisena)\n    - target: Kohdelihasryhmä (näkyy käyttäjälle)\n    - type: 'weight' (paino+toistot) | 'time' (ajastin, reps=sekunnit) | 'reps_per_side' (toistot/puoli, ei painoa)\n    - setsMin: Vähimmäissarjamäärä\n    - setsMax: Enimmäissarjamäärä\n    - repsMin: Vähimmäistoistot / sekunnit / toistot per puoli\n    - repsMax: Enimmäistoistot / sekunnit / toistot per puoli\n    - restDuration: Lepoaika sarjojen välissä sekunteina (oletus 90)\n    - note: Valinnainen tekniikkavinkki (näkyy harjoituskortissa)\n    - progression: Valinnainen etenemismalli (vain 'weight'-tyypille):\n        { type: 'double', weightIncrement: 2.5 }  – kaksoisprogressio (hypertrofia): kasvata toistoja repsMax:iin asti, sitten lisää painoa ja resetoi repsMin:iin\n        { type: 'linear', weightIncrement: 2.5 }  – lineaarinen progressio (voima): lisää painoa joka kerta\n        Jätä pois jos et halua automaattista progression ehdotusta",
+    id: "oma-ohjelma",
+    name: "Oma ohjelma",
+    workouts: {
+      A: {
+        name: "Treeni A – esimerkki",
+        exercises: [
+          {
+            name: "Jalkaprässi",
+            target: "Etureidet ja pakarat",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 4,
+            repsMin: 8,
+            repsMax: 12,
+            restDuration: 90,
+            progression: { type: "double", weightIncrement: 5 },
+            note: "Pidä selkä tiukasti kiinni penkissä koko liikkeen ajan."
+          },
+          {
+            name: "Penkkipunnerrus",
+            target: "Rintalihas, etuolkapää, ojentaja",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 5,
+            repsMin: 3,
+            repsMax: 5,
+            restDuration: 180,
+            progression: { type: "linear", weightIncrement: 2.5 }
+          },
+          {
+            name: "Lankku",
+            target: "Keskivartalo",
+            type: "time",
+            setsMin: 3,
+            setsMax: 3,
+            repsMin: 30,
+            repsMax: 60,
+            restDuration: 60
+          },
+          {
+            name: "Kävelyhaukka",
+            target: "Pakarat ja lonkankoukistajat",
+            type: "reps_per_side",
+            setsMin: 2,
+            setsMax: 3,
+            repsMin: 10,
+            repsMax: 12,
+            restDuration: 60
+          }
+        ]
+      },
+      B: {
+        name: "Treeni B – esimerkki",
+        exercises: [
+          {
+            name: "Maastaveto",
+            target: "Takareidet, selkä, pakarat",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 4,
+            repsMin: 5,
+            repsMax: 8,
+            restDuration: 180,
+            progression: { type: "linear", weightIncrement: 2.5 },
+            note: "Pidä selkä suorana, vedä lapaluut yhteen ennen nostoa."
+          },
+          {
+            name: "Ylätalja leveällä otteella",
+            target: "Leveä selkälihas, hauislihas",
+            type: "weight",
+            setsMin: 3,
+            setsMax: 4,
+            repsMin: 8,
+            repsMax: 12,
+            restDuration: 90,
+            progression: { type: "double", weightIncrement: 2.5 }
+          }
+        ]
+      }
+    }
+  };
+
+  const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'gymtracker-ohjelma-pohja.json';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── History ──────────────────────────────────────────────────────────────────
@@ -1289,7 +1491,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const active = loadActiveSession();
   if (active) {
-    const program = getActiveProgramData().workouts[active.type];
+    const prog = await getActiveProgramData();
+    const program = prog.workouts[active.type];
     state.workout = { type: active.type, exercises: program.exercises };
     state.exerciseOrder = active.exerciseOrder;
     state.currentExerciseIdx = active.currentExerciseIdx;
