@@ -1029,14 +1029,18 @@ async function renderHistory(container) {
     <div class="history-view">
       <div class="header">
         <h2>Treenihistoria</h2>
-        <button class="btn-history-action" onclick="exportHistory()">Vie</button>
-        <button class="btn-history-action" onclick="document.getElementById('import-file-input').click()">Tuo</button>
-        ${progHistory.length > 0 ? `
-          <button class="btn-edit-history ${historyEditMode ? 'active' : ''}"
-            onclick="toggleHistoryEdit()">
-            ${historyEditMode ? 'Valmis' : 'Muokkaa'}
-          </button>
-        ` : ''}
+        <div class="history-menu-wrap">
+          <button class="btn-program-switch" onclick="toggleHistoryMenu(event)" id="history-menu-btn" aria-label="Asetukset">⚙</button>
+          <div class="history-menu-dropdown" id="history-menu-dropdown" style="display:none">
+            <button class="history-menu-item" onclick="exportHistory(); closeHistoryMenu()">📤 Vie historia</button>
+            <button class="history-menu-item" onclick="document.getElementById('import-file-input').click(); closeHistoryMenu()">📥 Tuo historia</button>
+            ${progHistory.length > 0 ? `
+              <button class="history-menu-item ${historyEditMode ? 'danger' : ''}" onclick="toggleHistoryEdit()">
+                ${historyEditMode ? '✕ Lopeta muokkaus' : '✏️ Muokkaa'}
+              </button>
+            ` : ''}
+          </div>
+        </div>
       </div>
       <input type="file" id="import-file-input" accept=".json" style="display:none"
         onchange="importHistory(this)">
@@ -1138,6 +1142,22 @@ async function importHistory(inputElement) {
     confirmText: 'OK',
     onConfirm: async () => { await renderHistory(document.getElementById('app')); }
   });
+}
+
+function toggleHistoryMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('history-menu-dropdown');
+  if (!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) {
+    document.addEventListener('click', closeHistoryMenu, { once: true });
+  }
+}
+
+function closeHistoryMenu() {
+  const menu = document.getElementById('history-menu-dropdown');
+  if (menu) menu.style.display = 'none';
 }
 
 async function toggleHistoryEdit() {

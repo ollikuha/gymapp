@@ -37,6 +37,7 @@
       background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
 
     body {
@@ -129,6 +130,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      flex: 1;
+      width: 100%;
     }
     .app-title { background: linear-gradient(135deg, #a78bfa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .app-subtitle { color: var(--text2); font-size: 0.95rem; margin-top: 4px; }
@@ -458,6 +461,7 @@
     }
     .input-group {
       flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 5px;
@@ -479,7 +483,7 @@
     .input-group input::-webkit-inner-spin-button,
     .input-group input::-webkit-outer-spin-button { -webkit-appearance: none; }
     .input-group input:focus { border-color: var(--accent); }
-    .input-hint { font-size: 0.75rem; color: var(--text3); white-space: nowrap; }
+    .input-hint { font-size: 0.75rem; color: var(--text3); overflow-wrap: break-word; }
     .input-hint.progressed { color: #4caf50; font-weight: 600; }
 
     .btn-complete {
@@ -685,35 +689,39 @@
       color: white;
     }
 
-    .btn-edit-history {
-      background: none;
+    .history-menu-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .history-menu-dropdown {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: var(--bg3);
       border: 1px solid rgba(255,255,255,0.12);
-      color: var(--text2);
-      font-size: 0.88rem;
-      font-weight: 500;
-      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 200;
+      min-width: 160px;
+      box-shadow: var(--shadow);
+    }
+    .history-menu-item {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 0.9rem;
+      padding: 10px 14px;
+      text-align: left;
       border-radius: var(--radius-sm);
       cursor: pointer;
-      min-height: 36px;
-      transition: color 0.15s, border-color 0.15s;
+      transition: background 0.1s;
+      width: 100%;
     }
-    .btn-edit-history:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-    .btn-edit-history.active { color: var(--accent); border-color: var(--accent); }
-
-    .btn-history-action {
-      background: none;
-      border: 1px solid rgba(255,255,255,0.12);
-      color: var(--text2);
-      font-size: 0.88rem;
-      font-weight: 500;
-      padding: 6px 14px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      min-height: 36px;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .btn-history-action:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-    .btn-history-action:active { color: var(--accent); border-color: var(--accent); }
+    .history-menu-item:active { background: rgba(255,255,255,0.08); }
+    .history-menu-item.danger { color: var(--red); }
 
     .history-delete-bar {
       position: sticky;
@@ -899,7 +907,7 @@
 
     .ex-nav-check  { color: var(--green); font-size: 1rem; }
     .ex-nav-arrow  { color: var(--text3); font-size: 1.3rem; line-height: 1; }
-    .ex-nav-hint   { font-size: 0.72rem; color: var(--text3); white-space: nowrap; }
+    .ex-nav-hint   { font-size: 0.72rem; color: var(--text3); }
 
     .ex-nav-cancel {
       display: block;
