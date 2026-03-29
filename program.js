@@ -25,6 +25,11 @@
 //   "time"          – timer-based, reps = seconds (no weight field)
 //   "reps_per_side" – reps per side (no weight field)
 //
+// Optional exercise flags:
+//   perSide: true   – used with type "time": exercise is done separately for each side
+//                     (e.g. side plank). Timer runs for left side first, then user
+//                     manually starts it for right side.
+//
 // Progression models (progression field):
 //   The app looks up the previous session for each exercise and suggests the
 //   next weight/reps based on the model. If omitted, the last used weight is
@@ -285,6 +290,7 @@ const PROGRAMS = [
             name: "Sivulankku",
             target: "Lantion sivutuki ja juoksun hallinta",
             type: "time",
+            perSide: true,
             setsMin: 2,
             setsMax: 3,
             repsMin: 20,
@@ -360,6 +366,7 @@ const PROGRAMS = [
             name: "Copenhagen lankku",
             target: "Lähentäjät, lantion stabiliteetti ja juoksun tukilihakset",
             type: "time",
+            perSide: true,
             setsMin: 2,
             setsMax: 2,
             repsMin: 15,

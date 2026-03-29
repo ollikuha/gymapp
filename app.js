@@ -34,8 +34,10 @@ let state = {
   currentExerciseIdx: 0,
   currentSetIdx: 0,
   completedSets: {},           // { exIdx: [{ weight, reps }] }
+  extraSets: {},               // { exIdx: number } – lisäsarjat ohjelman ulkopuolelta
   restTimer: null,             // { interval, remaining, total }
-  setTimer: null,              // { interval, remaining, total } – aikaharjoituksen sarja
+  setTimer: null,              // { interval, remaining, total, side } – aikaharjoituksen sarja
+  pendingSide: null,           // { side: 'right', duration: number } – odottaa oikean puolen ajastusta
 };
 
 // ── IndexedDB ─────────────────────────────────────────────────────────────────
@@ -250,6 +252,8 @@ function saveActiveSession() {
     currentExerciseIdx: state.currentExerciseIdx,
     currentSetIdx: state.currentSetIdx,
     completedSets: state.completedSets,
+    extraSets: state.extraSets,
+    pendingSide: state.pendingSide,
     startedAt: state.startedAt || new Date().toISOString()
   }));
 }
@@ -296,10 +300,13 @@ function playBeep() {
 
 // ── Set timer (aikaharjoitukset) ──────────────────────────────────────────────
 function startSetTimer(duration) {
+  const ex = getCurrentExercise();
+  const side = ex.perSide ? 'left' : null;
   stopSetTimer();
   stopRestTimer();
+  state.pendingSide = null;
   acquireWakeLock();
-  state.setTimer = { remaining: duration, total: duration };
+  state.setTimer = { remaining: duration, total: duration, side };
   renderWorkoutView(); // luo DOM uudelleen set-timer-area:n kanssa, sitten renderSetTimerHTML
 
   state.setTimer.interval = setInterval(() => {
@@ -308,7 +315,12 @@ function startSetTimer(duration) {
       stopSetTimer();
       playBeep();
       if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
-      completeSet(null, duration);
+      if (side === 'left') {
+        state.pendingSide = { side: 'right', duration };
+        renderWorkoutView();
+      } else {
+        completeSet(null, duration);
+      }
     } else {
       updateSetTimer();
     }
@@ -328,9 +340,11 @@ function renderSetTimerHTML() {
   if (!area) return;
   const r = 46;
   const circ = +(2 * Math.PI * r).toFixed(2);
+  const side = state.setTimer ? state.setTimer.side : null;
+  const sideLabel = side === 'left' ? 'Vasen puoli' : side === 'right' ? 'Oikea puoli' : 'Sarja käynnissä';
   area.innerHTML = `
     <div class="set-timer-card" id="set-timer-card">
-      <div class="timer-label">Sarja käynnissä</div>
+      <div class="timer-label">${sideLabel}</div>
       <div class="timer-circle">
         <svg viewBox="0 0 110 110" class="timer-svg">
           <circle class="timer-track" cx="55" cy="55" r="${r}"/>
@@ -364,8 +378,38 @@ function updateSetTimer() {
 function stopSetTimerEarly() {
   if (!state.setTimer) return;
   const elapsed = state.setTimer.total - state.setTimer.remaining;
+  const side = state.setTimer.side;
   stopSetTimer();
-  completeSet(null, elapsed);
+  if (side === 'left') {
+    state.pendingSide = { side: 'right', duration: elapsed };
+    renderWorkoutView();
+  } else {
+    state.pendingSide = null;
+    completeSet(null, elapsed);
+  }
+}
+
+function startRightSideTimer() {
+  if (!state.pendingSide) return;
+  const { duration } = state.pendingSide;
+  state.pendingSide = null;
+  stopSetTimer();
+  stopRestTimer();
+  acquireWakeLock();
+  state.setTimer = { remaining: duration, total: duration, side: 'right' };
+  renderWorkoutView();
+
+  state.setTimer.interval = setInterval(() => {
+    state.setTimer.remaining--;
+    if (state.setTimer.remaining <= 0) {
+      stopSetTimer();
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+      completeSet(null, duration);
+    } else {
+      updateSetTimer();
+    }
+  }, 1000);
 }
 
 // ── Rest timer ────────────────────────────────────────────────────────────────
@@ -403,6 +447,8 @@ async function startWorkout(type) {
   state.currentExerciseIdx = 0;
   state.currentSetIdx = 0;
   state.completedSets = {};
+  state.extraSets = {};
+  state.pendingSide = null;
   state.startedAt = new Date().toISOString();
   stopRestTimer();
   saveActiveSession();
@@ -437,7 +483,7 @@ async function completeSet(weight, reps) {
 
   const ex = getCurrentExercise();
   const restDur = ex.restDuration || REST_DURATION;
-  const targetSets = ex.setsMax;
+  const targetSets = ex.setsMax + (state.extraSets[realIdx] || 0);
   if (state.currentSetIdx >= targetSets) {
     startRestTimer(restDur, () => renderWorkoutView());
     await renderWorkoutAfterSet(true);
@@ -719,7 +765,7 @@ async function renderWorkoutView() {
   const exNum = state.currentExerciseIdx + 1;
   const completedSetsForEx = state.completedSets[realIdx] || [];
   const currentSet = state.currentSetIdx + 1;
-  const totalSets = ex.setsMax;
+  const totalSets = ex.setsMax + (state.extraSets[realIdx] || 0);
   const allSetsDone = state.currentSetIdx >= totalSets;
   const minSetsDone = ex.setsMin < ex.setsMax && state.currentSetIdx >= ex.setsMin;
 
@@ -774,11 +820,19 @@ async function renderWorkoutView() {
 
         ${!allSetsDone ? (
           state.setTimer ? `<div id="set-timer-area"></div>` :
+          state.pendingSide ? `
+            <div class="set-input-card" id="set-input-area">
+              <div class="set-label">Sarja ${currentSet} – Oikea puoli</div>
+              <button class="btn btn-primary btn-large" onclick="startRightSideTimer()">
+                ▶ Käynnistä ajastin (oikea puoli)
+              </button>
+            </div>
+          ` :
           ex.type === 'time' ? `
             <div class="set-input-card" id="set-input-area">
               <div class="set-label">Sarja ${currentSet} – ${ex.repsMin}–${ex.repsMax} sek</div>
               <button class="btn btn-primary btn-large" onclick="startSetTimer(${ex.repsMax})">
-                ▶ Käynnistä ajastin
+                ▶ Käynnistä ajastin${ex.perSide ? ' (vasen puoli)' : ''}
               </button>
             </div>
           ` : `
@@ -806,7 +860,8 @@ async function renderWorkoutView() {
           `
         ) : `
           <div class="all-sets-done">
-            Kaikki sarjat tehty! 🎉
+            <span>Kaikki sarjat tehty! 🎉</span>
+            <button class="btn btn-ghost btn-add-set" onclick="addExtraSet()">+ Lisää sarja</button>
           </div>
         `}
 
@@ -817,7 +872,7 @@ async function renderWorkoutView() {
         ` : ''}
       </div>
 
-      ${!allSetsDone && !state.setTimer ? `
+      ${!allSetsDone && !state.setTimer && !state.pendingSide ? `
         <button class="btn btn-skip-below" onclick="confirmSkip()">
           ⇄ Vaihda liike
         </button>
@@ -911,6 +966,13 @@ async function handleCompleteSet() {
   reps = rInput && rInput.value !== '' ? parseInt(rInput.value, 10) : ex.repsMax;
 
   await completeSet(weight, reps);
+}
+
+function addExtraSet() {
+  const realIdx = getCurrentRealIdx();
+  state.extraSets[realIdx] = (state.extraSets[realIdx] || 0) + 1;
+  stopRestTimer();
+  renderWorkoutView();
 }
 
 function formatSetResult(type, set) {
@@ -1498,6 +1560,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.currentExerciseIdx = active.currentExerciseIdx;
     state.currentSetIdx = active.currentSetIdx;
     state.completedSets = active.completedSets;
+    state.extraSets = active.extraSets || {};
+    state.pendingSide = active.pendingSide || null;
     state.startedAt = active.startedAt;
 
     render(); // render dashboard first
