@@ -860,6 +860,7 @@ async function renderWorkoutView() {
   const repsPlaceholder = suggestion.reps != null ? `${suggestion.reps}` : `${ex.repsMax}`;
   const weightHint = suggestion.hint || '';
   const hintClass = suggestion.isProgressed ? 'input-hint progressed' : 'input-hint';
+  const prevSet = completedSetsForEx.length > 0 ? completedSetsForEx[completedSetsForEx.length - 1] : null;
 
   app.innerHTML = `
     <div class="workout-view">
@@ -930,14 +931,16 @@ async function renderWorkoutView() {
                   <div class="input-group">
                     <label>Paino (kg)</label>
                     <input type="number" id="weight-input" inputmode="decimal"
-                      placeholder="${weightPlaceholder}" min="0" step="0.5">
+                      placeholder="${weightPlaceholder}" min="0" step="0.5"
+                      ${prevSet && prevSet.weight != null ? `value="${prevSet.weight}"` : ''}>
                     ${weightHint ? `<div class="${hintClass}">${weightHint}</div>` : ''}
                   </div>
                 ` : ''}
                 <div class="input-group">
                   <label>${ex.type === 'reps_per_side' ? 'Toistoa / puoli' : 'Toistoa'}</label>
                   <input type="number" id="reps-input" inputmode="numeric"
-                    placeholder="${repsPlaceholder}" min="0">
+                    placeholder="${repsPlaceholder}" min="0"
+                    ${prevSet ? `value="${prevSet.reps}"` : ''}>
                 </div>
               </div>
               <button class="btn btn-primary btn-complete" onclick="handleCompleteSet()">
