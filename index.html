@@ -532,6 +532,8 @@
     .set-num { font-size: 0.82rem; color: var(--text3); width: 52px; flex-shrink: 0; }
     .set-result { flex: 1; font-size: 0.95rem; font-weight: 600; color: var(--text); }
     .set-check { color: var(--green); font-size: 1rem; }
+    .completed-set { cursor: pointer; }
+    .completed-set:active { background: rgba(124, 58, 237, 0.15); border-color: rgba(124, 58, 237, 0.4); }
 
     .set-input-card {
       background: var(--bg3);
@@ -881,6 +883,19 @@
       padding: 3px 10px;
       border-radius: 99px;
     }
+
+    .set-edit-fields { display: flex; gap: 12px; margin-top: 4px; }
+    .set-edit-fields .field { flex: 1; }
+    .set-edit-fields .field label { display: block; font-size: 0.78rem; color: var(--text2); font-weight: 500; margin-bottom: 5px; }
+    .set-edit-fields .field input {
+      background: var(--bg3); border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-size: 1.4rem; font-weight: 700; padding: 12px 14px; width: 100%;
+      outline: none; -moz-appearance: textfield;
+    }
+    .set-edit-fields .field input::-webkit-inner-spin-button,
+    .set-edit-fields .field input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .set-edit-fields .field input:focus { border-color: var(--accent); }
 
     /* ── Modal ────────────────────────────────────────────────── */
     .modal-overlay {

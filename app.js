@@ -573,6 +573,63 @@ function showModal({ title, message, confirmText = 'OK', cancelText = null, onCo
   document.body.appendChild(overlay);
 }
 
+function editCompletedSet(realIdx, setIdx) {
+  const ex = state.workout.exercises[realIdx];
+  const set = (state.completedSets[realIdx] || [])[setIdx];
+  if (!ex || !set) return;
+
+  const hasWeight = ex.type === 'weight';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-title">Muokkaa sarjaa ${setIdx + 1}</div>
+      <div class="set-edit-fields">
+        ${hasWeight ? `
+          <div class="field">
+            <label>Paino (kg)</label>
+            <input id="edit-weight" type="number" inputmode="decimal" min="0" step="0.5" value="${set.weight ?? ''}">
+          </div>
+        ` : ''}
+        <div class="field">
+          <label>${ex.type === 'reps_per_side' ? 'Toistoa / puoli' : ex.type === 'time' ? 'Sekuntia' : 'Toistoa'}</label>
+          <input id="edit-reps" type="number" inputmode="numeric" min="0" step="1" value="${set.reps}">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-large" id="edit-save">Tallenna</button>
+        <button class="btn btn-ghost btn-large" id="edit-cancel">Peruuta</button>
+      </div>
+    </div>
+  `;
+
+  overlay.querySelector('#edit-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#edit-save').addEventListener('click', () => {
+    const weightEl = overlay.querySelector('#edit-weight');
+    const repsEl = overlay.querySelector('#edit-reps');
+    const newReps = parseInt(repsEl.value, 10);
+    const newWeight = weightEl ? parseFloat(weightEl.value) : null;
+
+    if (isNaN(newReps) || newReps < 0) { repsEl.focus(); return; }
+    if (weightEl && (isNaN(newWeight) || newWeight < 0)) { weightEl.focus(); return; }
+
+    state.completedSets[realIdx][setIdx] = {
+      ...state.completedSets[realIdx][setIdx],
+      reps: newReps,
+      weight: hasWeight ? newWeight : null
+    };
+    saveActiveSession();
+    overlay.remove();
+    renderWorkoutView();
+  });
+
+  requestAnimationFrame(() => {
+    const first = overlay.querySelector('input');
+    if (first) first.focus();
+  });
+  document.body.appendChild(overlay);
+}
+
 // ── Views ─────────────────────────────────────────────────────────────────────
 function setView(view, pushHistory = true) {
   state.view = view;
@@ -839,7 +896,7 @@ async function renderWorkoutView() {
         ${completedSetsForEx.length > 0 ? `
           <div class="completed-sets">
             ${completedSetsForEx.map((s, i) => `
-              <div class="completed-set">
+              <div class="completed-set" onclick="editCompletedSet(${realIdx}, ${i})">
                 <span class="set-num">Sarja ${i + 1}</span>
                 <span class="set-result">${formatSetResult(ex.type, s)}</span>
                 <span class="set-check">✓</span>
