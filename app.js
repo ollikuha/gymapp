@@ -517,6 +517,35 @@ async function finishWorkout() {
   setView('dashboard');
 }
 
+// ── Video modal ───────────────────────────────────────────────────────────────
+function extractYouTubeId(url) {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
+function showVideoModal(url) {
+  const videoId = extractYouTubeId(url);
+  const embedUrl = videoId
+    ? `https://www.youtube.com/embed/${videoId}?autoplay=1`
+    : url;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'video-modal-overlay';
+  overlay.innerHTML = `
+    <div class="video-modal-card">
+      <button class="video-modal-close" aria-label="Sulje">✕</button>
+      <div class="video-modal-iframe-wrap">
+        <iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      </div>
+    </div>
+  `;
+  overlay.querySelector('.video-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const closeOnEsc = e => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', closeOnEsc); } };
+  document.addEventListener('keydown', closeOnEsc);
+  document.body.appendChild(overlay);
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 function showModal({ title, message, confirmText = 'OK', cancelText = null, onConfirm, onCancel } = {}) {
   const overlay = document.createElement('div');
@@ -793,6 +822,7 @@ async function renderWorkoutView() {
             <h2 class="exercise-name">${ex.name}</h2>
             <div class="exercise-target">${ex.target}</div>
           </div>
+          ${ex.videoUrl ? `<button class="video-btn" onclick="showVideoModal('${ex.videoUrl}')" title="Katso ohjevideo">▶</button>` : ''}
         </div>
 
         <div class="sets-info">
@@ -1189,7 +1219,7 @@ async function importLocalProgram(inputElement) {
 
 function downloadProgramTemplate() {
   const template = {
-    _description: "Tämä on GymTracker-ohjelman pohja tekoälykäyttöön. Muokkaa kenttiä luodaksesi oman ohjelman ja tuo se sovellukseen. Poista tai jätä _description-kenttä – se jätetään huomiotta tuonnissa.\n\nKentät:\n- id: Uniikki tunniste, ei välilyöntejä (esim. 'oma-ohjelma-2025')\n- name: Ohjelman nimi käyttäjälle\n- workouts: Objekti, jonka avaimet ovat treenijako-tyypit (esim. A, B, C). Voit käyttää mitä tahansa kirjaimia tai lyhenteitä.\n  - name: Treenin nimi (näkyy käyttäjälle)\n  - exercises: Lista harjoituksista\n    - name: Harjoituksen nimi (käytetään historian hakuun – pidä johdonmukaisena)\n    - target: Kohdelihasryhmä (näkyy käyttäjälle)\n    - type: 'weight' (paino+toistot) | 'time' (ajastin, reps=sekunnit) | 'reps_per_side' (toistot/puoli, ei painoa)\n    - setsMin: Vähimmäissarjamäärä\n    - setsMax: Enimmäissarjamäärä\n    - repsMin: Vähimmäistoistot / sekunnit / toistot per puoli\n    - repsMax: Enimmäistoistot / sekunnit / toistot per puoli\n    - restDuration: Lepoaika sarjojen välissä sekunteina (oletus 90)\n    - note: Valinnainen tekniikkavinkki (näkyy harjoituskortissa)\n    - perSide: true (valinnainen) – vain type 'time' -harjoituksille: ajastin ajetaan erikseen vasemmalle ja oikealle puolelle. Käyttäjä käynnistää kummankin puolen itse.\n    - progression: Valinnainen etenemismalli (vain 'weight'-tyypille):\n        { type: 'double', weightIncrement: 2.5 }  – kaksoisprogressio (hypertrofia): kasvata toistoja repsMax:iin asti, sitten lisää painoa ja resetoi repsMin:iin\n        { type: 'linear', weightIncrement: 2.5 }  – lineaarinen progressio (voima): lisää painoa joka kerta\n        Jätä pois jos et halua automaattista progression ehdotusta",
+    _description: "Tämä on GymTracker-ohjelman pohja tekoälykäyttöön. Muokkaa kenttiä luodaksesi oman ohjelman ja tuo se sovellukseen. Poista tai jätä _description-kenttä – se jätetään huomiotta tuonnissa.\n\nKentät:\n- id: Uniikki tunniste, ei välilyöntejä (esim. 'oma-ohjelma-2025')\n- name: Ohjelman nimi käyttäjälle\n- workouts: Objekti, jonka avaimet ovat treenijako-tyypit (esim. A, B, C). Voit käyttää mitä tahansa kirjaimia tai lyhenteitä.\n  - name: Treenin nimi (näkyy käyttäjälle)\n  - exercises: Lista harjoituksista\n    - name: Harjoituksen nimi (käytetään historian hakuun – pidä johdonmukaisena)\n    - target: Kohdelihasryhmä (näkyy käyttäjälle)\n    - type: 'weight' (paino+toistot) | 'time' (ajastin, reps=sekunnit) | 'reps_per_side' (toistot/puoli, ei painoa)\n    - setsMin: Vähimmäissarjamäärä\n    - setsMax: Enimmäissarjamäärä\n    - repsMin: Vähimmäistoistot / sekunnit / toistot per puoli\n    - repsMax: Enimmäistoistot / sekunnit / toistot per puoli\n    - restDuration: Lepoaika sarjojen välissä sekunteina (oletus 90)\n    - note: Valinnainen tekniikkavinkki (näkyy harjoituskortissa)\n    - videoUrl: Valinnainen YouTube-URL ohjevideoon (esim. 'https://www.youtube.com/watch?v=VIDEO_ID'). Näyttää ▶-napin harjoituskortissa, jota painamalla video avautuu sovelluksessa.\n    - perSide: true (valinnainen) – vain type 'time' -harjoituksille: ajastin ajetaan erikseen vasemmalle ja oikealle puolelle. Käyttäjä käynnistää kummankin puolen itse.\n    - progression: Valinnainen etenemismalli (vain 'weight'-tyypille):\n        { type: 'double', weightIncrement: 2.5 }  – kaksoisprogressio (hypertrofia): kasvata toistoja repsMax:iin asti, sitten lisää painoa ja resetoi repsMin:iin\n        { type: 'linear', weightIncrement: 2.5 }  – lineaarinen progressio (voima): lisää painoa joka kerta\n        Jätä pois jos et halua automaattista progression ehdotusta",
     id: "oma-ohjelma",
     name: "Oma ohjelma",
     workouts: {
@@ -1206,7 +1236,8 @@ function downloadProgramTemplate() {
             repsMax: 12,
             restDuration: 90,
             progression: { type: "double", weightIncrement: 5 },
-            note: "Pidä selkä tiukasti kiinni penkissä koko liikkeen ajan."
+            note: "Pidä selkä tiukasti kiinni penkissä koko liikkeen ajan.",
+            videoUrl: "https://www.youtube.com/watch?v=VIDEO_ID"
           },
           {
             name: "Penkkipunnerrus",
