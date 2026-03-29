@@ -824,7 +824,7 @@ async function renderWorkoutView() {
             <div class="set-input-card" id="set-input-area">
               <div class="set-label">Sarja ${currentSet} – Oikea puoli</div>
               <button class="btn btn-primary btn-large" onclick="startRightSideTimer()">
-                ▶ Käynnistä ajastin (oikea puoli)
+                ▶ Oikea
               </button>
             </div>
           ` :
@@ -832,7 +832,7 @@ async function renderWorkoutView() {
             <div class="set-input-card" id="set-input-area">
               <div class="set-label">Sarja ${currentSet} – ${ex.repsMin}–${ex.repsMax} sek</div>
               <button class="btn btn-primary btn-large" onclick="startSetTimer(${ex.repsMax})">
-                ▶ Käynnistä ajastin${ex.perSide ? ' (vasen puoli)' : ''}
+                ${ex.perSide ? '▶ Vasen' : '▶ Käynnistä ajastin'}
               </button>
             </div>
           ` : `
@@ -1189,7 +1189,7 @@ async function importLocalProgram(inputElement) {
 
 function downloadProgramTemplate() {
   const template = {
-    _description: "Tämä on GymTracker-ohjelman pohja tekoälykäyttöön. Muokkaa kenttiä luodaksesi oman ohjelman ja tuo se sovellukseen. Poista tai jätä _description-kenttä – se jätetään huomiotta tuonnissa.\n\nKentät:\n- id: Uniikki tunniste, ei välilyöntejä (esim. 'oma-ohjelma-2025')\n- name: Ohjelman nimi käyttäjälle\n- workouts: Objekti, jonka avaimet ovat treenijako-tyypit (esim. A, B, C). Voit käyttää mitä tahansa kirjaimia tai lyhenteitä.\n  - name: Treenin nimi (näkyy käyttäjälle)\n  - exercises: Lista harjoituksista\n    - name: Harjoituksen nimi (käytetään historian hakuun – pidä johdonmukaisena)\n    - target: Kohdelihasryhmä (näkyy käyttäjälle)\n    - type: 'weight' (paino+toistot) | 'time' (ajastin, reps=sekunnit) | 'reps_per_side' (toistot/puoli, ei painoa)\n    - setsMin: Vähimmäissarjamäärä\n    - setsMax: Enimmäissarjamäärä\n    - repsMin: Vähimmäistoistot / sekunnit / toistot per puoli\n    - repsMax: Enimmäistoistot / sekunnit / toistot per puoli\n    - restDuration: Lepoaika sarjojen välissä sekunteina (oletus 90)\n    - note: Valinnainen tekniikkavinkki (näkyy harjoituskortissa)\n    - progression: Valinnainen etenemismalli (vain 'weight'-tyypille):\n        { type: 'double', weightIncrement: 2.5 }  – kaksoisprogressio (hypertrofia): kasvata toistoja repsMax:iin asti, sitten lisää painoa ja resetoi repsMin:iin\n        { type: 'linear', weightIncrement: 2.5 }  – lineaarinen progressio (voima): lisää painoa joka kerta\n        Jätä pois jos et halua automaattista progression ehdotusta",
+    _description: "Tämä on GymTracker-ohjelman pohja tekoälykäyttöön. Muokkaa kenttiä luodaksesi oman ohjelman ja tuo se sovellukseen. Poista tai jätä _description-kenttä – se jätetään huomiotta tuonnissa.\n\nKentät:\n- id: Uniikki tunniste, ei välilyöntejä (esim. 'oma-ohjelma-2025')\n- name: Ohjelman nimi käyttäjälle\n- workouts: Objekti, jonka avaimet ovat treenijako-tyypit (esim. A, B, C). Voit käyttää mitä tahansa kirjaimia tai lyhenteitä.\n  - name: Treenin nimi (näkyy käyttäjälle)\n  - exercises: Lista harjoituksista\n    - name: Harjoituksen nimi (käytetään historian hakuun – pidä johdonmukaisena)\n    - target: Kohdelihasryhmä (näkyy käyttäjälle)\n    - type: 'weight' (paino+toistot) | 'time' (ajastin, reps=sekunnit) | 'reps_per_side' (toistot/puoli, ei painoa)\n    - setsMin: Vähimmäissarjamäärä\n    - setsMax: Enimmäissarjamäärä\n    - repsMin: Vähimmäistoistot / sekunnit / toistot per puoli\n    - repsMax: Enimmäistoistot / sekunnit / toistot per puoli\n    - restDuration: Lepoaika sarjojen välissä sekunteina (oletus 90)\n    - note: Valinnainen tekniikkavinkki (näkyy harjoituskortissa)\n    - perSide: true (valinnainen) – vain type 'time' -harjoituksille: ajastin ajetaan erikseen vasemmalle ja oikealle puolelle. Käyttäjä käynnistää kummankin puolen itse.\n    - progression: Valinnainen etenemismalli (vain 'weight'-tyypille):\n        { type: 'double', weightIncrement: 2.5 }  – kaksoisprogressio (hypertrofia): kasvata toistoja repsMax:iin asti, sitten lisää painoa ja resetoi repsMin:iin\n        { type: 'linear', weightIncrement: 2.5 }  – lineaarinen progressio (voima): lisää painoa joka kerta\n        Jätä pois jos et halua automaattista progression ehdotusta",
     id: "oma-ohjelma",
     name: "Oma ohjelma",
     workouts: {
@@ -1220,14 +1220,16 @@ function downloadProgramTemplate() {
             progression: { type: "linear", weightIncrement: 2.5 }
           },
           {
-            name: "Lankku",
-            target: "Keskivartalo",
+            name: "Sivulankku",
+            target: "Lantion sivutuki",
             type: "time",
-            setsMin: 3,
+            perSide: true,
+            setsMin: 2,
             setsMax: 3,
-            repsMin: 30,
-            repsMax: 60,
-            restDuration: 60
+            repsMin: 20,
+            repsMax: 40,
+            restDuration: 60,
+            note: "Sekuntia per puoli. Suora linja nilkasta olkapäähän."
           },
           {
             name: "Kävelyhaukka",
